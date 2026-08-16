@@ -1,0 +1,114 @@
+# yaml-language-server: $schema=https://aka.ms/configuration-dsc-schema/0.2
+properties:
+  configurationVersion: 0.2.0
+  
+  resources:
+    # Enable Developer Mode and dark mode
+    - resource: Microsoft.Windows.Settings/WindowsSettings
+      directives:
+        description: Enable Developer Mode
+        allowPrerelease: true
+        securityContext: elevated
+      settings:
+        DeveloperMode: true
+    
+    - resource: Microsoft.Windows.Developer/EnableDarkMode
+      directives:
+        description: Enable dark mode
+        allowPrerelease: true
+      settings:
+        Ensure: Present
+        RestartExplorer: true
+    
+    # Terminal and shell
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      directives:
+        description: Install Windows Terminal Preview
+      settings:
+        id: Microsoft.WindowsTerminal.Preview
+        source: winget
+    
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      directives:
+        description: Install PowerShell 7
+        securityContext: elevated
+      settings:
+        id: Microsoft.PowerShell
+        source: winget
+    
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      directives:
+        description: Install Oh My Posh
+      settings:
+        id: JanDeDobbeleer.OhMyPosh
+        source: winget
+    
+    # Development tools
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      directives:
+        description: Install Visual Studio Code Insiders
+        securityContext: elevated
+      settings:
+        id: Microsoft.VisualStudioCode.Insiders
+        source: winget
+
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      id: vsPackage
+      directives:
+        description: Install Visual Studio 2026
+        securityContext: elevated
+      settings:
+        id: Microsoft.VisualStudio.Enterprise
+        source: winget
+
+    - resource: Microsoft.VisualStudio.DSC/VSComponents
+      dependsOn:
+        - vsPackage
+      directives:
+        description: Install .NET workload
+        allowPrerelease: true
+        securityContext: elevated
+      settings:
+        productId: Microsoft.VisualStudio.Product.Enterprise
+        channelId: VisualStudio.18.Release
+        components:
+          - Microsoft.VisualStudio.Workload.ManagedDesktop
+    
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      directives:
+        description: Install .NET SDK 10
+        securityContext: elevated
+      settings:
+        id: Microsoft.DotNet.SDK.10
+        source: winget
+    
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      directives:
+        description: Install Azure Developer CLI
+      settings:
+        id: Microsoft.Azd
+        source: winget
+    
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      directives:
+        description: Install Git
+        securityContext: elevated
+      settings:
+        id: Git.Git
+        source: winget
+    
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      directives:
+        description: Install Node.js
+        securityContext: elevated
+      settings:
+        id: OpenJS.NodeJS.LTS
+        source: winget
+
+    # AI tools
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      directives:
+        description: Install GitHub Copilot CLI
+      settings:
+        id: GitHub.Copilot
+        source: winget
