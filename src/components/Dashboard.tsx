@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { DATA_TYPES_BY_ID, DEFAULT_SELECTED_IDS } from '../api/dataTypes'
 import { fetchLatestRecords } from '../api/healthApi'
 import { useAuth } from '../auth/AuthContext'
+import { useTimeRange } from '../state/timeRange'
 import type { DataTypeDef, FetchOutcome, HealthRecord } from '../types'
 import Controls, { type ControlsState } from './Controls'
 import OutcomeSummary from './OutcomeSummary'
@@ -9,7 +10,6 @@ import RecordList from './RecordList'
 
 const INITIAL_CONTROLS: ControlsState = {
   selectedIds: DEFAULT_SELECTED_IDS,
-  lookbackDays: 7,
   pageSize: 10,
   query: '',
   showAll: false,
@@ -31,6 +31,7 @@ function matchesQuery(record: HealthRecord, query: string): boolean {
 
 export default function Dashboard() {
   const { getAccessToken } = useAuth()
+  const { lookbackDays } = useTimeRange()
   const [controls, setControls] = useState<ControlsState>(INITIAL_CONTROLS)
   const [records, setRecords] = useState<HealthRecord[]>([])
   const [outcomes, setOutcomes] = useState<FetchOutcome[]>([])
@@ -69,7 +70,7 @@ export default function Dashboard() {
       const result = await fetchLatestRecords(selectedTypes, {
         accessToken,
         pageSize: controls.pageSize,
-        lookbackDays: controls.lookbackDays,
+        lookbackDays,
       })
       if (id !== requestId.current) return
       setRecords(result.records)
@@ -81,7 +82,7 @@ export default function Dashboard() {
     } finally {
       if (id === requestId.current) setLoading(false)
     }
-  }, [getAccessToken, selectedTypes, controls.pageSize, controls.lookbackDays])
+  }, [getAccessToken, selectedTypes, controls.pageSize, lookbackDays])
 
   // `query` is applied client-side, so it deliberately does not refetch.
   useEffect(() => {

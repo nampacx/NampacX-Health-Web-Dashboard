@@ -1,7 +1,13 @@
 import { useState } from 'react'
 import { useAuth } from '../auth/AuthContext'
 
-export default function SignIn() {
+interface Props {
+  /** True once at least one provider is already connected — swaps the full
+   * explanatory card for a one-line "also connect" row. */
+  compact?: boolean
+}
+
+export default function SignIn({ compact = false }: Props) {
   const { signIn, error, clientId } = useAuth()
   const [busy, setBusy] = useState(false)
 
@@ -12,6 +18,18 @@ export default function SignIn() {
     } finally {
       setBusy(false)
     }
+  }
+
+  if (compact) {
+    return (
+      <section className="card signin signin-compact">
+        <p className="muted">Also want your Google Health activity and sleep here?</p>
+        <button type="button" className="btn" onClick={handleClick} disabled={busy || !clientId}>
+          {busy ? 'Opening Google…' : 'Sign in with Google'}
+        </button>
+        {error && <p className="banner banner-error">{error}</p>}
+      </section>
+    )
   }
 
   return (

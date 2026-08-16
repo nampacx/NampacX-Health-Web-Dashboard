@@ -1,0 +1,12 @@
+*.ts
+!dist/**/*.d.ts
+tsconfig.json
+src
+test
+*.test.js
+.git*
+.vscode
+local.settings.json
+node_modules/typescript
+node_modules/vitest
+node_modules/@vitest

@@ -1,0 +1,11 @@
+{
+  "IsEncrypted": false,
+  "Values": {
+    "AzureWebJobsStorage": "",
+    "FUNCTIONS_WORKER_RUNTIME": "node",
+    "WITHINGS_CLIENT_ID": "",
+    "WITHINGS_CLIENT_SECRET": "",
+    "ALLOWED_ORIGINS": "http://localhost:5173,http://127.0.0.1:5173",
+    "ALLOWED_REDIRECT_URIS": "http://localhost:5173/"
+  }
+}

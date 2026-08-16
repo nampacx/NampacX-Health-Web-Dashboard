@@ -11,7 +11,7 @@ export default function Header() {
         </span>
         <div>
           <h1>Health Dashboard</h1>
-          <p className="brand-sub">Your latest Google Health data</p>
+          <p className="brand-sub">Activity, sleep, and body composition — together</p>
         </div>
       </div>
 

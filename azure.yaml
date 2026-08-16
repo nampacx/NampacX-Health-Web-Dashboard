@@ -1,0 +1,10 @@
+# azd project definition for the Withings token broker.
+# https://learn.microsoft.com/azure/developer/azure-developer-cli/azd-schema
+name: ghd-withings-broker
+metadata:
+  template: ghd-withings-broker@0.1.0
+services:
+  api:
+    project: ./api
+    language: js
+    host: function

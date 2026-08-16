@@ -9,7 +9,6 @@ import type { DataTypeDef } from '../types'
 
 export interface ControlsState {
   selectedIds: string[]
-  lookbackDays: number
   pageSize: number
   query: string
   showAll: boolean
@@ -21,14 +20,6 @@ interface Props {
   onRefresh: () => void
   loading: boolean
 }
-
-const LOOKBACK_OPTIONS = [
-  { value: 1, label: 'Last 24 hours' },
-  { value: 7, label: 'Last 7 days' },
-  { value: 30, label: 'Last 30 days' },
-  { value: 90, label: 'Last 90 days' },
-  { value: 0, label: 'No time filter' },
-]
 
 const PAGE_SIZE_OPTIONS = [5, 10, 25, 50]
 
@@ -62,20 +53,6 @@ export default function Controls({ state, onChange, onRefresh, loading }: Props)
   return (
     <section className="card controls">
       <div className="controls-row">
-        <label className="field">
-          <span>Time range</span>
-          <select
-            value={state.lookbackDays}
-            onChange={(event) => onChange({ ...state, lookbackDays: Number(event.target.value) })}
-          >
-            {LOOKBACK_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </label>
-
         <label className="field">
           <span>Rows per data type</span>
           <select

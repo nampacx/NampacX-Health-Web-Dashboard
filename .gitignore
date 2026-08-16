@@ -12,3 +12,14 @@ dist-ssr/
 .idea/
 .DS_Store
 *.tsbuildinfo
+
+# Withings token broker (api/). local.settings.json holds live secrets when
+# populated for local dev -- verify with `git check-ignore -v` before it's
+# ever filled in. node_modules/dist under api/ are already covered by the
+# blanket rules above; listed here for clarity since it's a separate project.
+api/local.settings.json
+api/dist/
+api/node_modules/
+
+# azd local deployment state (env vars, provisioning cache).
+.azure/

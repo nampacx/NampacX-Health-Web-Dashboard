@@ -526,3 +526,35 @@ code {
   margin: 0;
   max-width: 60ch;
 }
+
+/* Withings section */
+.list-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.delta {
+  color: var(--muted);
+  font-size: 0.82em;
+  font-weight: 500;
+}
+
+.signin-compact {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.signin-compact p {
+  margin: 0;
+}
+
+.field-hint {
+  margin: -6px 0 0;
+  font-size: 0.76rem;
+  max-width: 60ch;
+}

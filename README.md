@@ -1,15 +1,24 @@
 # Google Health Web Dashboard
 
-A React + Vite single-page app that signs you in with Google and lists your latest
-[Google Health API](https://developers.google.com/health/about) data, focused on **activity and
-sleep**.
+A React + Vite single-page app that reads your [Google Health API](https://developers.google.com/health/about)
+activity and sleep data, and — separately — your [Withings](https://developer.withings.com/developer-guide/v3/integration-guide/public-health-data-api/public-health-data-api-overview)
+body-composition weigh-ins. The two providers are independent: connect either one, or both.
 
+**Google Health**
 - Browser-only OAuth 2.0 (implicit token flow via Google Identity Services) — **no client secret in the app**
 - Reads `GET /v4/users/me/dataTypes/{dataType}/dataPoints` across the data types you pick
 - Defaults to steps, distance, floors, active minutes, active zone minutes, energy burned, total
   calories, exercise and sleep — the other categories stay one click away in the picker
 - Groups records by calendar day (Today / Yesterday / weekday), newest first, with per-record detail
   chips and raw JSON
+
+**Withings**
+- Authorization-code OAuth through a small [Azure Function broker](api/) — Withings requires a
+  `client_secret` for both the token exchange and every refresh, so unlike Google this cannot be a
+  browser-only flow (see [api/README.md](api/README.md) for why)
+- Reads body-composition weigh-ins (weight, fat %, muscle mass, and more) directly from the browser
+  once a token is issued — only the token exchange itself goes through the broker
+- One card per weigh-in, with the change since the previous one
 
 ## Prerequisites
 
@@ -62,6 +71,19 @@ npm run dev
 
 Then open <http://localhost:5173> and click **Sign in with Google**.
 
+Withings is optional and separate — see [Withings setup](#withings-setup) below. Skipping it leaves
+the Google side fully usable; the Withings card just shows a "connect" prompt.
+
+## Tests
+
+```bash
+npm run test
+```
+
+Vitest, no jsdom — everything under test (normalization, token rotation, OAuth state handling) is
+pure logic; a DOM harness would be more setup than the components warrant. The Azure Function has
+its own equivalent test suite: `cd api && npm run test`.
+
 ## How it works
 
 | File | Role |
@@ -73,6 +95,11 @@ Then open <http://localhost:5173> and click **Sign in with Google**.
 | [src/api/normalize.ts](src/api/normalize.ts) | Turns a raw data point into a renderable row |
 | [src/api/grouping.ts](src/api/grouping.ts) | Buckets records into calendar days |
 | [src/components/Dashboard.tsx](src/components/Dashboard.tsx) | Controls + list orchestration |
+| [src/api/withingsApi.ts](src/api/withingsApi.ts) | `getmeas` client — pagination, body-status error handling |
+| [src/api/withingsNormalize.ts](src/api/withingsNormalize.ts) | Raw measure groups → renderable, unit-scaled `MeasureGroup`s |
+| [src/auth/withingsAuth.ts](src/auth/withingsAuth.ts) | Authorize redirect, broker calls, module-scope callback capture |
+| [src/auth/withingsTokenStore.ts](src/auth/withingsTokenStore.ts) | Token persistence and refresh-rotation safety (see below) |
+| [api/](api/) | The Azure Function broker — holds the Withings `client_secret` |
 
 ### No proxy needed
 
@@ -106,6 +133,29 @@ Likewise, the optional time filter (`<type>.interval.civil_start_time >= "…"`)
 optimistically — if the API rejects it with a 400 for a data type that has no such field, the request
 is retried unfiltered so that type still contributes rows.
 
+## Withings setup
+
+Withings' token endpoint requires a `client_secret` for both the authorization-code exchange and
+every refresh — verified live: sending a PKCE `code_verifier` instead produces the exact same
+"Missing params" response as sending nothing at all, so PKCE is not a substitute here the way it is
+for most modern OAuth APIs. A static SPA cannot hold that secret, which is why [api/](api/) exists —
+a small, stateless Azure Function that does only the token exchange and refresh. Everything else
+(fetching measurements) happens directly from the browser; Withings' data API is CORS-open.
+
+1. Register an app at the [Withings Partner dashboard](https://developer.withings.com/dashboard/) —
+   name, description, and a callback URI matching your deployed origin **byte-for-byte**, trailing
+   slash included (e.g. `https://mikokono.de/Google-Health-Web-Dashboard/`). Note the client ID and
+   secret.
+2. Deploy the broker: see [api/README.md](api/README.md) — `azd up` provisions an Azure Function
+   (Flex Consumption, scales to zero) and wires the secret in as an app setting.
+3. Set `VITE_WITHINGS_CLIENT_ID` and `VITE_WITHINGS_BROKER_URL` (copy `.env.example` to
+   `.env.local` for local dev, or the repo variables described below for the deployed site).
+4. For local development, register a *second* Withings app with a callback of
+   `https://localhost:5173/` (Withings requires HTTPS callbacks; `@vitejs/plugin-basic-ssl` or
+   similar gets you there) — the deployed app's registration won't accept a `localhost` redirect.
+5. Click **Connect Withings**. No physical scale needed to try it: set `VITE_WITHINGS_DEMO=1` to
+   append `mode=demo` to the authorize URL and sign in as Withings' demo account.
+
 ## Deploy to GitHub Pages
 
 [.github/workflows/deploy-pages.yml](.github/workflows/deploy-pages.yml) builds the app and
@@ -131,11 +181,35 @@ The base path is handled automatically: `actions/configure-pages` emits `base_pa
 passes it as `VITE_BASE_PATH`, and [vite.config.ts](vite.config.ts) normalises it into Vite's `base`.
 Local builds still default to `/`.
 
-Because the API needs no proxy, static hosting is enough — nothing else is required at runtime.
+Google needs no proxy, so the Pages site alone is enough to use it. Withings additionally needs the
+Function broker (see [Withings setup](#withings-setup) above) — but that's optional and separate:
+the site builds and serves Google-only if `VITE_WITHINGS_CLIENT_ID` / `VITE_WITHINGS_BROKER_URL`
+are left unset, only logging a build-time warning rather than failing.
+
+Add these to **Settings → Secrets and variables → Actions → Variables** alongside
+`VITE_GOOGLE_CLIENT_ID` for the Withings side to work: `VITE_WITHINGS_CLIENT_ID`,
+`VITE_WITHINGS_BROKER_URL`. The Function itself deploys separately, via
+[.github/workflows/deploy-function.yml](.github/workflows/deploy-function.yml) — see
+[api/README.md](api/README.md) for the secrets and OIDC setup it needs.
 
 ## Notes
 
 - Only data types with a `.readonly` scope are listed. `moods`, `symptoms`, `menstrual-period` and
   `ovulation-test` expose write-only scopes, so they cannot be read back.
-- The access token lives in `sessionStorage` and dies with the tab. There is no refresh token —
-  by design, since that would require a client secret and a backend.
+- The Google access token lives in `sessionStorage` and dies with the tab. There is no refresh
+  token — by design, since that would require a client secret and a backend.
+- The Withings refresh token is a ~1-year credential and **rotates on every use** — Withings
+  invalidates the old one the instant a new one is issued. `withingsTokenStore.ts` exists almost
+  entirely to make that safe: writes are synchronous the moment a broker response is parsed, both
+  `{current, previous}` tokens are kept, and refreshes are single-flighted in-tab and (via a Web
+  Lock, where supported) cross-tab. Only a broker `401 invalid_grant` response ever clears the
+  stored token — a network blip or a broker `5xx` must never look the same, or a flaky connection
+  would silently and permanently break the Withings link.
+- Withings stores the refresh token in `sessionStorage` by default; `localStorage` is opt-in via an
+  explicit, off-by-default "keep me connected" checkbox, since a year-long credential in
+  `localStorage` is a much larger XSS blast radius than a session-scoped one.
+- Withings' token endpoint reports every "Invalid Params" failure — a wrong `client_secret`, a dead
+  refresh token, a bad code — as the same generic status. The broker separates them by matching the
+  one wording Withings appears to reserve for credential problems ("invalid client id/secret");
+  see the comment in [api/src/lib/withings.ts](api/src/lib/withings.ts) for the evidence and the
+  reasoning. It is a heuristic, not a documented contract.
