@@ -97,7 +97,7 @@ is retried unfiltered so that type still contributes rows.
 ## Deploy to GitHub Pages
 
 [.github/workflows/deploy-pages.yml](.github/workflows/deploy-pages.yml) builds the app and
-publishes it on every push to `main` (and on demand via *Run workflow*). Three one-time setup steps:
+publishes it on every push to `main` (and on demand via *Run workflow*). Four one-time setup steps:
 
 1. **Settings → Pages → Build and deployment → Source: GitHub Actions.** Without this the deploy job
    fails; the workflow does not enable Pages for you.
@@ -105,9 +105,15 @@ publishes it on every push to `main` (and on demand via *Run workflow*). Three o
    build fails fast with a clear error if it is missing, rather than shipping a site that cannot
    sign anyone in. A *variable*, not a secret, is correct here: an OAuth client ID is public by
    design and is readable in the shipped bundle regardless.
-3. **Add the Pages origin to your OAuth client.** In Google Cloud Console, add
-   `https://<user>.github.io` to *Authorized JavaScript origins* — the origin only, no repo path.
-   Sign-in fails with `origin_mismatch` until you do.
+3. **Add the Pages origin to your OAuth client.** In Google Cloud Console, add the origin your site
+   is actually served from to *Authorized JavaScript origins* — the scheme and host only, no repo
+   path. Check **Settings → Pages** for the real value: if the account has a custom domain, project
+   sites are served from it rather than from `<user>.github.io`. For this repo that is
+   `https://mikokono.de`, not `https://nampacx.github.io`. Sign-in fails with `origin_mismatch`
+   otherwise.
+4. **Settings → Pages → Enforce HTTPS.** Google rejects `http://` JavaScript origins for anything
+   other than `localhost`, so sign-in cannot work over plain HTTP. The certificate is already
+   provisioned; this just makes HTTPS the canonical URL.
 
 The base path is handled automatically: `actions/configure-pages` emits `base_path`, the workflow
 passes it as `VITE_BASE_PATH`, and [vite.config.ts](vite.config.ts) normalises it into Vite's `base`.
