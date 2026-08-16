@@ -16,8 +16,13 @@ export interface DataTypeDef {
   label: string
   category: string
   scope: ReadScope
-  /** Unit shown next to the primary value, when the API does not carry one. */
-  unit?: string
+  /**
+   * Field names preferred for the headline value, most interesting first,
+   * matched against the last segment of a payload path. Purely a hint: if none
+   * are present the generic "first numeric leaf" heuristic still applies, so a
+   * wrong guess here degrades rather than breaks.
+   */
+  summaryKeys?: string[]
 }
 
 /** Raw shape returned by GET /users/me/dataTypes/{dataType}/dataPoints. */

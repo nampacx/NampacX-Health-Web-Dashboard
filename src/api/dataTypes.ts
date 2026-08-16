@@ -13,14 +13,14 @@ export function scopeUrl(scope: ReadScope): string {
  */
 export const DATA_TYPES: DataTypeDef[] = [
   // Activity & fitness
-  { id: 'steps', label: 'Steps', category: 'Activity', scope: 'activity_and_fitness.readonly' },
-  { id: 'distance', label: 'Distance', category: 'Activity', scope: 'activity_and_fitness.readonly' },
-  { id: 'exercise', label: 'Exercise', category: 'Activity', scope: 'activity_and_fitness.readonly' },
-  { id: 'floors', label: 'Floors', category: 'Activity', scope: 'activity_and_fitness.readonly' },
-  { id: 'active-minutes', label: 'Active minutes', category: 'Activity', scope: 'activity_and_fitness.readonly' },
-  { id: 'active-zone-minutes', label: 'Active zone minutes', category: 'Activity', scope: 'activity_and_fitness.readonly' },
-  { id: 'active-energy-burned', label: 'Active energy burned', category: 'Activity', scope: 'activity_and_fitness.readonly' },
-  { id: 'total-calories', label: 'Total calories', category: 'Activity', scope: 'activity_and_fitness.readonly' },
+  { id: 'steps', label: 'Steps', category: 'Activity', scope: 'activity_and_fitness.readonly', summaryKeys: ['steps', 'count', 'stepCount'] },
+  { id: 'distance', label: 'Distance', category: 'Activity', scope: 'activity_and_fitness.readonly', summaryKeys: ['distanceMillimiters', 'distanceMillimeters', 'distance'] },
+  { id: 'exercise', label: 'Exercise', category: 'Activity', scope: 'activity_and_fitness.readonly', summaryKeys: ['displayName', 'exerciseType'] },
+  { id: 'floors', label: 'Floors', category: 'Activity', scope: 'activity_and_fitness.readonly', summaryKeys: ['floors', 'count'] },
+  { id: 'active-minutes', label: 'Active minutes', category: 'Activity', scope: 'activity_and_fitness.readonly', summaryKeys: ['activeMinutes', 'minutes', 'duration'] },
+  { id: 'active-zone-minutes', label: 'Active zone minutes', category: 'Activity', scope: 'activity_and_fitness.readonly', summaryKeys: ['activeZoneMinutes', 'totalMinutes', 'minutes'] },
+  { id: 'active-energy-burned', label: 'Active energy burned', category: 'Activity', scope: 'activity_and_fitness.readonly', summaryKeys: ['caloriesKcal', 'energyKcal', 'calories'] },
+  { id: 'total-calories', label: 'Total calories', category: 'Activity', scope: 'activity_and_fitness.readonly', summaryKeys: ['caloriesKcal', 'calories'] },
   { id: 'calories-in-heart-rate-zone', label: 'Calories in HR zone', category: 'Activity', scope: 'activity_and_fitness.readonly' },
   { id: 'time-in-heart-rate-zone', label: 'Time in HR zone', category: 'Activity', scope: 'activity_and_fitness.readonly' },
   { id: 'activity-level', label: 'Activity level', category: 'Activity', scope: 'activity_and_fitness.readonly' },
@@ -49,7 +49,13 @@ export const DATA_TYPES: DataTypeDef[] = [
   { id: 'daily-sleep-temperature-derivations', label: 'Sleep temperature', category: 'Metrics', scope: 'health_metrics_and_measurements.readonly' },
 
   // Sleep
-  { id: 'sleep', label: 'Sleep', category: 'Sleep', scope: 'sleep.readonly' },
+  {
+    id: 'sleep',
+    label: 'Sleep',
+    category: 'Sleep',
+    scope: 'sleep.readonly',
+    summaryKeys: ['durationMillis', 'durationMs', 'duration', 'timeAsleepMinutes', 'minutesAsleep', 'efficiency'],
+  },
 
   // Nutrition
   { id: 'nutrition-log', label: 'Nutrition log', category: 'Nutrition', scope: 'nutrition.readonly' },
@@ -63,17 +69,32 @@ export const DATA_TYPES: DataTypeDef[] = [
 
 export const DATA_TYPES_BY_ID = new Map(DATA_TYPES.map((d) => [d.id, d]))
 
-/** What gets loaded on first sign-in. Kept small so the first render is quick. */
+/** The categories the dashboard is built around. */
+export const FOCUS_CATEGORIES = ['Activity', 'Sleep']
+
+/** Ordered so the focus categories come first in the picker. */
+export const CATEGORY_ORDER = [...FOCUS_CATEGORIES, 'Metrics', 'Nutrition', 'Specialised']
+
+/**
+ * Loaded on first sign-in: the activity and sleep types, minus the niche ones
+ * (VO2 max variants, swim lengths, altitude) that would mostly add empty rows.
+ */
 export const DEFAULT_SELECTED_IDS = [
   'steps',
-  'heart-rate',
-  'sleep',
-  'exercise',
-  'weight',
-  'active-zone-minutes',
-  'total-calories',
   'distance',
+  'floors',
+  'active-minutes',
+  'active-zone-minutes',
+  'active-energy-burned',
+  'total-calories',
+  'exercise',
+  'sleep',
 ]
+
+/** Every activity and sleep type, for the "All activity + sleep" preset. */
+export const FOCUS_IDS = DATA_TYPES.filter((d) => FOCUS_CATEGORIES.includes(d.category)).map(
+  (d) => d.id,
+)
 
 /**
  * Every read scope the app can ever need. Google shows one consent screen, so
