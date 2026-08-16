@@ -1,21 +1,16 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
-// The Google Health API does not advertise CORS headers for browser origins, so
-// during development every `/health-api/**` request is proxied through Vite to
-// https://health.googleapis.com. The bearer token still comes from the browser;
-// the proxy only forwards it.
+// GitHub Pages serves a project site from /<repo>/, so a production build needs
+// a base path. The deploy workflow passes it via VITE_BASE_PATH (from the
+// configure-pages action); local builds default to the site root.
+const rawBase = process.env.VITE_BASE_PATH?.trim() || '/'
+const base = rawBase.endsWith('/') ? rawBase : `${rawBase}/`
+
 export default defineConfig({
+  base,
   plugins: [react()],
   server: {
     port: 5173,
-    proxy: {
-      '/health-api': {
-        target: 'https://health.googleapis.com',
-        changeOrigin: true,
-        secure: true,
-        rewrite: (path) => path.replace(/^\/health-api/, ''),
-      },
-    },
   },
 })

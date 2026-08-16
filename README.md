@@ -69,12 +69,17 @@ Then open <http://localhost:5173> and click **Sign in with Google**.
 | [src/api/normalize.ts](src/api/normalize.ts) | Turns a raw data point into a renderable row |
 | [src/components/Dashboard.tsx](src/components/Dashboard.tsx) | Controls + list orchestration |
 
-### The dev proxy
+### No proxy needed
 
-`health.googleapis.com` does not advertise CORS headers for arbitrary browser origins, so
-[vite.config.ts](vite.config.ts) proxies `/health-api/**` to it during development. The access token
-is still minted in the browser; the proxy only forwards the request. For a deployment you need an
-equivalent proxy (any small server or an edge function) — set `VITE_HEALTH_API_BASE` to point at it.
+`health.googleapis.com` returns permissive CORS headers — it echoes `Access-Control-Allow-Origin`
+for arbitrary origins and allows the `authorization` request header:
+
+```bash
+curl -sS -o /dev/null -D - -X OPTIONS https://health.googleapis.com/v4/users/me/dataTypes/steps/dataPoints -H 'Origin: https://example.com' -H 'Access-Control-Request-Method: GET' -H 'Access-Control-Request-Headers: authorization'
+```
+
+So the browser calls the API directly and the app can be hosted as pure static files. Set
+`VITE_HEALTH_API_BASE` only if you deliberately want to route through your own proxy.
 
 ### Timestamps and field names
 
@@ -88,6 +93,27 @@ row.
 Likewise, the optional time filter (`<type>.interval.civil_start_time >= "…"`) is applied
 optimistically — if the API rejects it with a 400 for a data type that has no such field, the request
 is retried unfiltered so that type still contributes rows.
+
+## Deploy to GitHub Pages
+
+[.github/workflows/deploy-pages.yml](.github/workflows/deploy-pages.yml) builds the app and
+publishes it on every push to `main` (and on demand via *Run workflow*). Three one-time setup steps:
+
+1. **Settings → Pages → Build and deployment → Source: GitHub Actions.** Without this the deploy job
+   fails; the workflow does not enable Pages for you.
+2. **Settings → Secrets and variables → Actions → Variables** → add `VITE_GOOGLE_CLIENT_ID`. The
+   build fails fast with a clear error if it is missing, rather than shipping a site that cannot
+   sign anyone in. A *variable*, not a secret, is correct here: an OAuth client ID is public by
+   design and is readable in the shipped bundle regardless.
+3. **Add the Pages origin to your OAuth client.** In Google Cloud Console, add
+   `https://<user>.github.io` to *Authorized JavaScript origins* — the origin only, no repo path.
+   Sign-in fails with `origin_mismatch` until you do.
+
+The base path is handled automatically: `actions/configure-pages` emits `base_path`, the workflow
+passes it as `VITE_BASE_PATH`, and [vite.config.ts](vite.config.ts) normalises it into Vite's `base`.
+Local builds still default to `/`.
+
+Because the API needs no proxy, static hosting is enough — nothing else is required at runtime.
 
 ## Notes
 

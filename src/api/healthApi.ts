@@ -1,7 +1,10 @@
 import type { DataTypeDef, FetchOutcome, HealthRecord, ListDataPointsResponse } from '../types'
 import { normalizeDataPoint } from './normalize'
 
-const API_BASE = import.meta.env.VITE_HEALTH_API_BASE?.trim() || '/health-api/v4'
+// health.googleapis.com returns Access-Control-Allow-Origin for arbitrary
+// origins and permits the `authorization` header, so the browser can call it
+// directly — no proxy required, in development or on a static host.
+const API_BASE = import.meta.env.VITE_HEALTH_API_BASE?.trim() || 'https://health.googleapis.com/v4'
 
 export class HealthApiError extends Error {
   constructor(
@@ -67,7 +70,7 @@ async function getDataPoints(
     })
   } catch (err) {
     throw new HealthApiError(
-      `Network request failed. If you are not using the Vite dev proxy, the browser has most likely blocked the call via CORS. (${
+      `Network request failed — check your connection, or whether an extension is blocking requests to health.googleapis.com. (${
         err instanceof Error ? err.message : String(err)
       })`,
       0,
