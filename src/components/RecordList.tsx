@@ -1,3 +1,4 @@
+import { groupByDay } from '../api/grouping'
 import type { HealthRecord } from '../types'
 import RecordRow from './RecordRow'
 
@@ -8,7 +9,7 @@ interface Props {
 
 export default function RecordList({ records, loading }: Props) {
   if (loading && records.length === 0) {
-    return <p className="muted">Loading your latest health data…</p>
+    return <p className="muted">Loading your latest activity and sleep data…</p>
   }
 
   if (records.length === 0) {
@@ -24,10 +25,23 @@ export default function RecordList({ records, loading }: Props) {
   }
 
   return (
-    <ul className="records">
-      {records.map((record) => (
-        <RecordRow key={record.key} record={record} />
+    <div className="day-groups">
+      {groupByDay(records).map((group) => (
+        <section key={group.key} className="day-group">
+          <header className="day-header">
+            <h3>{group.label}</h3>
+            <span className="muted">
+              {group.records.length} {group.records.length === 1 ? 'record' : 'records'} ·{' '}
+              {group.types.join(', ')}
+            </span>
+          </header>
+          <ul className="records">
+            {group.records.map((record) => (
+              <RecordRow key={record.key} record={record} />
+            ))}
+          </ul>
+        </section>
       ))}
-    </ul>
+    </div>
   )
 }

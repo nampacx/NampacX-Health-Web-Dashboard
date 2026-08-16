@@ -1,11 +1,15 @@
 # Google Health Web Dashboard
 
 A React + Vite single-page app that signs you in with Google and lists your latest
-[Google Health API](https://developers.google.com/health/about) data.
+[Google Health API](https://developers.google.com/health/about) data, focused on **activity and
+sleep**.
 
 - Browser-only OAuth 2.0 (implicit token flow via Google Identity Services) — **no client secret in the app**
 - Reads `GET /v4/users/me/dataTypes/{dataType}/dataPoints` across the data types you pick
-- Merges everything into one list sorted newest-first, with per-record detail chips and raw JSON
+- Defaults to steps, distance, floors, active minutes, active zone minutes, energy burned, total
+  calories, exercise and sleep — the other categories stay one click away in the picker
+- Groups records by calendar day (Today / Yesterday / weekday), newest first, with per-record detail
+  chips and raw JSON
 
 ## Prerequisites
 
@@ -67,6 +71,7 @@ Then open <http://localhost:5173> and click **Sign in with Google**.
 | [src/api/dataTypes.ts](src/api/dataTypes.ts) | Catalog of readable data types and their scopes |
 | [src/api/healthApi.ts](src/api/healthApi.ts) | REST calls, error mapping, bounded-concurrency fan-out |
 | [src/api/normalize.ts](src/api/normalize.ts) | Turns a raw data point into a renderable row |
+| [src/api/grouping.ts](src/api/grouping.ts) | Buckets records into calendar days |
 | [src/components/Dashboard.tsx](src/components/Dashboard.tsx) | Controls + list orchestration |
 
 ### No proxy needed
@@ -89,6 +94,13 @@ payload object, searches known timestamp paths (`interval.endTime`, `time`, `dat
 the rest into label/value chips, inferring units from field-name suffixes (`caloriesKcal`,
 `distanceMillimiters`). Anything it does not understand is still visible under **Raw JSON** on each
 row.
+
+On top of that, each data type may declare `summaryKeys` — field names it would rather lead with
+(`steps` for steps, `durationMillis` for sleep, `displayName` for exercise). These are hints matched
+against the last path segment, tried exactly and then loosely; when none are present the generic
+heuristic still applies, so a wrong guess degrades the headline rather than breaking the row. Units
+are rendered into the value and stripped from the label, so a `durationMillis` field reads
+"Duration: 8 h 15 min" rather than "Duration millis: 29700000".
 
 Likewise, the optional time filter (`<type>.interval.civil_start_time >= "…"`) is applied
 optimistically — if the API rejects it with a 400 for a data type that has no such field, the request

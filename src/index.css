@@ -358,6 +358,52 @@ code {
   gap: 10px;
 }
 
+.day-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.day-group {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.day-header {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  background: var(--bg);
+  z-index: 1;
+}
+
+.day-header h3 {
+  margin: 0;
+  font-size: 0.92rem;
+}
+
+.day-header .muted {
+  font-size: 0.76rem;
+}
+
+.presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 12px;
+}
+
+.btn-small {
+  padding: 4px 10px;
+  font-size: 0.78rem;
+}
+
 .record {
   background: var(--surface);
   border: 1px solid var(--border);

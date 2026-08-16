@@ -101,7 +101,7 @@ export default function Dashboard() {
       <OutcomeSummary outcomes={outcomes} />
 
       <div className="list-header">
-        <h2>Latest data</h2>
+        <h2>Latest activity &amp; sleep</h2>
         <span className="muted">
           {visible.length} {visible.length === 1 ? 'record' : 'records'}
           {loadedAt && ` · updated ${loadedAt.toLocaleTimeString()}`}

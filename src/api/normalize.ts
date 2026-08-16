@@ -105,14 +105,25 @@ function flatten(value: unknown, prefix: string, out: Leaf[], depth = 0): void {
   }
 }
 
-/** camelCase path -> "Calories kcal" */
+/**
+ * Unit-carrying suffixes. `formatLeaf` renders these into the value itself, so
+ * leaving them in the label yields "Duration millis: 8 h 15 min".
+ */
+const UNIT_SUFFIX =
+  /\s+(kcal|millim[ie]ters|millis|milliseconds|seconds|minutes|percent|percentage|kilograms?|grams?|centimeters|meters|milliliters|celsius|bpm)$/i
+
+/** camelCase path -> "Calories" (the unit lives in the formatted value) */
 function humanizePath(path: string): string {
   const last = path.split('.').pop() ?? path
   const words = last
     .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
     .replace(/_/g, ' ')
     .toLowerCase()
-  return words.charAt(0).toUpperCase() + words.slice(1)
+  // Only strip when something meaningful survives: a bare "minutes" field has
+  // nothing else to go by.
+  const trimmed = words.replace(UNIT_SUFFIX, '').trim()
+  const label = trimmed || words
+  return label.charAt(0).toUpperCase() + label.slice(1)
 }
 
 /** int64 fields arrive as strings, so numeric strings count as numbers here. */
@@ -170,19 +181,62 @@ function formatLeaf(leaf: Leaf): string {
   if (/(centimeters|cm)$/i.test(key)) return `${numberFormat.format(numeric)} cm`
   if (/meters?$/i.test(key)) return `${numberFormat.format(numeric)} m`
   if (/milliliters?$/i.test(key)) return `${numberFormat.format(numeric)} ml`
+  // Sleep durations tend to arrive as millisecond or minute counts.
+  if (/milli(s|seconds)$/i.test(key)) return formatDurationSeconds(numeric / 1000)
   if (/seconds$/i.test(key)) return formatDurationSeconds(numeric)
-  if (/minutes$/i.test(key)) return `${numberFormat.format(numeric)} min`
+  // Under an hour, "45 min" beats "45 min" via the h/m formatter's rounding.
+  if (/minutes$/i.test(key)) {
+    return numeric < 60 ? `${numberFormat.format(numeric)} min` : formatDurationSeconds(numeric * 60)
+  }
+  if (/^duration$/i.test(key)) return formatDurationSeconds(numeric)
+  if (/efficiency$/i.test(key)) return `${numberFormat.format(numeric)} %`
   if (/celsius$/i.test(key)) return `${numberFormat.format(numeric)} °C`
 
   return numberFormat.format(numeric)
 }
 
+function lastSegment(path: string): string {
+  return (path.split('.').pop() ?? path).toLowerCase()
+}
+
 /**
- * Picks the headline value. `displayName` wins when present (exercise rows read
- * best as "Walk"); otherwise the first numeric leaf stands in. The chosen leaf
- * is returned too, so the caller can keep it out of the detail chips.
+ * Finds the leaf a data type would rather lead with. Exact matches on the final
+ * path segment win; a substring match is accepted as a second pass so that
+ * e.g. `totalDistanceMillimiters` still answers to `distance`.
  */
-function buildSummary(leaves: Leaf[]): { text: string | null; leaf: Leaf | null } {
+function findPreferred(leaves: Leaf[], keys: string[]): Leaf | undefined {
+  for (const key of keys) {
+    const wanted = key.toLowerCase()
+    const exact = leaves.find((leaf) => lastSegment(leaf.path) === wanted)
+    if (exact) return exact
+  }
+  for (const key of keys) {
+    const wanted = key.toLowerCase()
+    const loose = leaves.find((leaf) => lastSegment(leaf.path).includes(wanted))
+    if (loose) return loose
+  }
+  return undefined
+}
+
+/**
+ * Picks the headline value: the data type's preferred field if it turned up,
+ * then `displayName` (exercise rows read best as "Walk"), then the first
+ * numeric leaf. The chosen leaf is returned so the caller can keep it out of
+ * the detail chips.
+ */
+function buildSummary(
+  leaves: Leaf[],
+  summaryKeys: string[] | undefined,
+): { text: string | null; leaf: Leaf | null } {
+  const preferred = summaryKeys ? findPreferred(leaves, summaryKeys) : undefined
+  if (preferred) {
+    // A named activity ("Walk") is the whole story; a number needs its label.
+    if (lastSegment(preferred.path) === 'displayname') {
+      return { text: String(preferred.value), leaf: preferred }
+    }
+    return { text: `${humanizePath(preferred.path)}: ${formatLeaf(preferred)}`, leaf: preferred }
+  }
+
   const named = leaves.find((leaf) => leaf.path.endsWith('displayName'))
   if (named) return { text: String(named.value), leaf: named }
 
@@ -203,7 +257,7 @@ export function normalizeDataPoint(
   flatten(payload, '', leaves)
   const displayable = leaves.filter((leaf) => !TIME_NOISE.test(leaf.path))
 
-  const summary = buildSummary(displayable)
+  const summary = buildSummary(displayable, dataType.summaryKeys)
 
   const details = displayable
     .filter((leaf) => leaf !== summary.leaf)

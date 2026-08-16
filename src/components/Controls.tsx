@@ -1,5 +1,10 @@
 import { useMemo } from 'react'
-import { DATA_TYPES } from '../api/dataTypes'
+import {
+  CATEGORY_ORDER,
+  DATA_TYPES,
+  DEFAULT_SELECTED_IDS,
+  FOCUS_IDS,
+} from '../api/dataTypes'
 import type { DataTypeDef } from '../types'
 
 export interface ControlsState {
@@ -26,6 +31,13 @@ const LOOKBACK_OPTIONS = [
 
 const PAGE_SIZE_OPTIONS = [5, 10, 25, 50]
 
+const PRESETS: Array<{ label: string; ids: string[] }> = [
+  { label: 'Default', ids: DEFAULT_SELECTED_IDS },
+  { label: 'All activity + sleep', ids: FOCUS_IDS },
+  { label: 'Everything', ids: DATA_TYPES.map((d) => d.id) },
+  { label: 'None', ids: [] },
+]
+
 export default function Controls({ state, onChange, onRefresh, loading }: Props) {
   const grouped = useMemo(() => {
     const byCategory = new Map<string, DataTypeDef[]>()
@@ -34,7 +46,9 @@ export default function Controls({ state, onChange, onRefresh, loading }: Props)
       bucket.push(dataType)
       byCategory.set(dataType.category, bucket)
     }
-    return Array.from(byCategory.entries())
+    return Array.from(byCategory.entries()).sort(
+      ([a], [b]) => CATEGORY_ORDER.indexOf(a) - CATEGORY_ORDER.indexOf(b),
+    )
   }, [])
 
   function toggle(id: string) {
@@ -94,6 +108,20 @@ export default function Controls({ state, onChange, onRefresh, loading }: Props)
         <summary>
           Data types <span className="pill">{state.selectedIds.length} selected</span>
         </summary>
+
+        <div className="presets">
+          {PRESETS.map((preset) => (
+            <button
+              key={preset.label}
+              type="button"
+              className="btn btn-small"
+              onClick={() => onChange({ ...state, selectedIds: preset.ids })}
+            >
+              {preset.label}
+            </button>
+          ))}
+        </div>
+
         {grouped.map(([category, dataTypes]) => (
           <div key={category} className="picker-group">
             <h3>{category}</h3>
