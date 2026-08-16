@@ -12,6 +12,7 @@ const INITIAL_CONTROLS: ControlsState = {
   lookbackDays: 7,
   pageSize: 10,
   query: '',
+  showAll: false,
 }
 
 function matchesQuery(record: HealthRecord, query: string): boolean {
@@ -88,10 +89,16 @@ export default function Dashboard() {
   }, [load])
 
   const visible = useMemo(() => {
+    let filtered = records
+    if (!controls.showAll) {
+      filtered = filtered.filter(
+        (record) => record.dataType.id === 'exercise' || record.dataType.id === 'sleep',
+      )
+    }
     const query = controls.query.trim().toLowerCase()
-    if (!query) return records
-    return records.filter((record) => matchesQuery(record, query))
-  }, [records, controls.query])
+    if (!query) return filtered
+    return filtered.filter((record) => matchesQuery(record, query))
+  }, [records, controls.query, controls.showAll])
 
   return (
     <>

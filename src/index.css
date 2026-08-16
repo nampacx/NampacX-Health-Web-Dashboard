@@ -197,6 +197,13 @@ code {
   min-width: 180px;
 }
 
+.field-inline {
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
 .field select,
 .field input {
   font: inherit;
