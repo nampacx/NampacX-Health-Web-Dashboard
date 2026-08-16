@@ -1,0 +1,121 @@
+import { useMemo } from 'react'
+import { DATA_TYPES } from '../api/dataTypes'
+import type { DataTypeDef } from '../types'
+
+export interface ControlsState {
+  selectedIds: string[]
+  lookbackDays: number
+  pageSize: number
+  query: string
+}
+
+interface Props {
+  state: ControlsState
+  onChange: (next: ControlsState) => void
+  onRefresh: () => void
+  loading: boolean
+}
+
+const LOOKBACK_OPTIONS = [
+  { value: 1, label: 'Last 24 hours' },
+  { value: 7, label: 'Last 7 days' },
+  { value: 30, label: 'Last 30 days' },
+  { value: 90, label: 'Last 90 days' },
+  { value: 0, label: 'No time filter' },
+]
+
+const PAGE_SIZE_OPTIONS = [5, 10, 25, 50]
+
+export default function Controls({ state, onChange, onRefresh, loading }: Props) {
+  const grouped = useMemo(() => {
+    const byCategory = new Map<string, DataTypeDef[]>()
+    for (const dataType of DATA_TYPES) {
+      const bucket = byCategory.get(dataType.category) ?? []
+      bucket.push(dataType)
+      byCategory.set(dataType.category, bucket)
+    }
+    return Array.from(byCategory.entries())
+  }, [])
+
+  function toggle(id: string) {
+    const selected = new Set(state.selectedIds)
+    if (selected.has(id)) selected.delete(id)
+    else selected.add(id)
+    onChange({ ...state, selectedIds: Array.from(selected) })
+  }
+
+  return (
+    <section className="card controls">
+      <div className="controls-row">
+        <label className="field">
+          <span>Time range</span>
+          <select
+            value={state.lookbackDays}
+            onChange={(event) => onChange({ ...state, lookbackDays: Number(event.target.value) })}
+          >
+            {LOOKBACK_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <label className="field">
+          <span>Rows per data type</span>
+          <select
+            value={state.pageSize}
+            onChange={(event) => onChange({ ...state, pageSize: Number(event.target.value) })}
+          >
+            {PAGE_SIZE_OPTIONS.map((size) => (
+              <option key={size} value={size}>
+                {size}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <label className="field field-grow">
+          <span>Filter results</span>
+          <input
+            type="search"
+            placeholder="e.g. walking, sleep, 2026-08"
+            value={state.query}
+            onChange={(event) => onChange({ ...state, query: event.target.value })}
+          />
+        </label>
+
+        <button type="button" className="btn" onClick={onRefresh} disabled={loading}>
+          {loading ? 'Loading…' : 'Refresh'}
+        </button>
+      </div>
+
+      <details className="picker">
+        <summary>
+          Data types <span className="pill">{state.selectedIds.length} selected</span>
+        </summary>
+        {grouped.map(([category, dataTypes]) => (
+          <div key={category} className="picker-group">
+            <h3>{category}</h3>
+            <div className="chips">
+              {dataTypes.map((dataType) => {
+                const active = state.selectedIds.includes(dataType.id)
+                return (
+                  <button
+                    key={dataType.id}
+                    type="button"
+                    className={active ? 'chip chip-active' : 'chip'}
+                    aria-pressed={active}
+                    onClick={() => toggle(dataType.id)}
+                  >
+                    {dataType.label}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        ))}
+      </details>
+    </section>
+  )
+}
