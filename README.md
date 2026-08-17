@@ -13,12 +13,35 @@ body-composition weigh-ins. The two providers are independent: connect either on
   chips and raw JSON
 
 **Withings**
-- Authorization-code OAuth through a small [Azure Function broker](api/) — Withings requires a
+- Authorization-code OAuth through a small [Azure Function broker](broker/) — Withings requires a
   `client_secret` for both the token exchange and every refresh, so unlike Google this cannot be a
-  browser-only flow (see [api/README.md](api/README.md) for why)
+  browser-only flow (see [broker/README.md](broker/README.md) for why)
 - Reads body-composition weigh-ins (weight, fat %, muscle mass, and more) directly from the browser
   once a token is issued — only the token exchange itself goes through the broker
 - One card per weigh-in, with the change since the previous one
+
+## What each provider needs
+
+The two sides share nothing but the page they render on. Google needs no backend at all; Withings
+needs one, purely because its token endpoint demands a `client_secret`. Set up either column alone
+and the app works — the other provider just shows a "connect" prompt.
+
+| | **Google Health** | **Withings** |
+| --- | --- | --- |
+| Register an app | Google Cloud project + OAuth **Web application** client ([§1](#1-google-cloud-setup)) | Withings Partner app ([§Withings setup](#withings-setup)) |
+| Client secret | **None** — implicit flow, nothing secret ships or is stored | **Required**, held only by the broker |
+| Backend | **None** — the browser calls `health.googleapis.com` directly | [broker/](broker/) — an Azure Function (Flex Consumption, scales to zero) |
+| Azure subscription | Not needed | Needed, to host the broker |
+| Local `.env.local` | `VITE_GOOGLE_CLIENT_ID` | `VITE_WITHINGS_CLIENT_ID`, `VITE_WITHINGS_BROKER_URL` |
+| Pages deploy — repo **variables** | `VITE_GOOGLE_CLIENT_ID` | `VITE_WITHINGS_CLIENT_ID`, `VITE_WITHINGS_BROKER_URL` |
+| Broker deploy — repo **variables** | — | `AZURE_LOCATION`, `WITHINGS_CLIENT_ID`, `WITHINGS_ALLOWED_ORIGINS`, `WITHINGS_ALLOWED_REDIRECT_URIS` |
+| Broker deploy — repo **secrets** | — | `WITHINGS_CLIENT_SECRET`, `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID` |
+| Callback / origin registration | JavaScript **origin** (e.g. `http://localhost:5173`) | Redirect **URI**, matched byte-for-byte, HTTPS only |
+| Token lifetime | Access token only, dies with the tab | Refresh token (~1 year) that rotates on every use |
+| If you skip it | Withings section still works on its own | Google side still works on its own |
+
+Missing Google config **fails** the Pages build (the site would be unusable); missing Withings config
+only logs a warning and deploys Google-only. That asymmetry is deliberate.
 
 ## Prerequisites
 
@@ -38,7 +61,7 @@ Per [developers.google.com/health/setup](https://developers.google.com/health/se
 2. Enable the **Google Health API**: <https://console.developers.google.com/apis/library/health.googleapis.com>
 3. Configure the **OAuth consent screen**, publishing status *Testing*.
 4. On the **Data access** page, click *Add or remove scopes* and add the `googlehealth.*.readonly`
-   scopes you want. The app requests all read scopes listed in [dataTypes.ts](src/api/dataTypes.ts);
+   scopes you want. The app requests all read scopes listed in [dataTypes.ts](src/api/google/dataTypes.ts);
    trim `REQUESTED_SCOPES` there if you want a shorter consent screen.
 5. On the **Audience** page, add your own Google account under *Test users*.
 6. Create credentials → **OAuth client ID** → application type **Web application**, and add
@@ -82,24 +105,24 @@ npm run test
 
 Vitest, no jsdom — everything under test (normalization, token rotation, OAuth state handling) is
 pure logic; a DOM harness would be more setup than the components warrant. The Azure Function has
-its own equivalent test suite: `cd api && npm run test`.
+its own equivalent test suite: `cd broker && npm run test`.
 
 ## How it works
 
 | File | Role |
 | --- | --- |
-| [src/auth/googleAuth.ts](src/auth/googleAuth.ts) | GIS token client, token storage in `sessionStorage`, revoke on sign-out |
-| [src/auth/AuthContext.tsx](src/auth/AuthContext.tsx) | React context; drops the session when the token expires |
-| [src/api/dataTypes.ts](src/api/dataTypes.ts) | Catalog of readable data types and their scopes |
-| [src/api/healthApi.ts](src/api/healthApi.ts) | REST calls, error mapping, bounded-concurrency fan-out |
-| [src/api/normalize.ts](src/api/normalize.ts) | Turns a raw data point into a renderable row |
-| [src/api/grouping.ts](src/api/grouping.ts) | Buckets records into calendar days |
+| [src/auth/google/googleAuth.ts](src/auth/google/googleAuth.ts) | GIS token client, token storage in `sessionStorage`, revoke on sign-out |
+| [src/auth/google/GoogleAuthContext.tsx](src/auth/google/GoogleAuthContext.tsx) | React context; drops the session when the token expires |
+| [src/api/google/dataTypes.ts](src/api/google/dataTypes.ts) | Catalog of readable data types and their scopes |
+| [src/api/google/healthApi.ts](src/api/google/healthApi.ts) | REST calls, error mapping, bounded-concurrency fan-out |
+| [src/api/google/normalize.ts](src/api/google/normalize.ts) | Turns a raw data point into a renderable row |
+| [src/api/google/grouping.ts](src/api/google/grouping.ts) | Buckets records into calendar days |
 | [src/components/Dashboard.tsx](src/components/Dashboard.tsx) | Controls + list orchestration |
-| [src/api/withingsApi.ts](src/api/withingsApi.ts) | `getmeas` client — pagination, body-status error handling |
-| [src/api/withingsNormalize.ts](src/api/withingsNormalize.ts) | Raw measure groups → renderable, unit-scaled `MeasureGroup`s |
-| [src/auth/withingsAuth.ts](src/auth/withingsAuth.ts) | Authorize redirect, broker calls, module-scope callback capture |
-| [src/auth/withingsTokenStore.ts](src/auth/withingsTokenStore.ts) | Token persistence and refresh-rotation safety (see below) |
-| [api/](api/) | The Azure Function broker — holds the Withings `client_secret` |
+| [src/api/withings/measureApi.ts](src/api/withings/measureApi.ts) | `getmeas` client — pagination, body-status error handling |
+| [src/api/withings/normalize.ts](src/api/withings/normalize.ts) | Raw measure groups → renderable, unit-scaled `MeasureGroup`s |
+| [src/auth/withings/withingsAuth.ts](src/auth/withings/withingsAuth.ts) | Authorize redirect, broker calls, module-scope callback capture |
+| [src/auth/withings/withingsTokenStore.ts](src/auth/withings/withingsTokenStore.ts) | Token persistence and refresh-rotation safety (see below) |
+| [broker/](broker/) | The Azure Function broker — holds the Withings `client_secret` |
 
 ### No proxy needed
 
@@ -110,8 +133,9 @@ for arbitrary origins and allows the `authorization` request header:
 curl -sS -o /dev/null -D - -X OPTIONS https://health.googleapis.com/v4/users/me/dataTypes/steps/dataPoints -H 'Origin: https://example.com' -H 'Access-Control-Request-Method: GET' -H 'Access-Control-Request-Headers: authorization'
 ```
 
-So the browser calls the API directly and the app can be hosted as pure static files. Set
-`VITE_HEALTH_API_BASE` only if you deliberately want to route through your own proxy.
+So the browser calls the API directly and the app can be hosted as pure static files. The API base
+URL is a constant in [src/api/google/healthApi.ts](src/api/google/healthApi.ts) — there is no override for it,
+because there is nothing to point it at.
 
 ### Timestamps and field names
 
@@ -138,7 +162,7 @@ is retried unfiltered so that type still contributes rows.
 Withings' token endpoint requires a `client_secret` for both the authorization-code exchange and
 every refresh — verified live: sending a PKCE `code_verifier` instead produces the exact same
 "Missing params" response as sending nothing at all, so PKCE is not a substitute here the way it is
-for most modern OAuth APIs. A static SPA cannot hold that secret, which is why [api/](api/) exists —
+for most modern OAuth APIs. A static SPA cannot hold that secret, which is why [broker/](broker/) exists —
 a small, stateless Azure Function that does only the token exchange and refresh. Everything else
 (fetching measurements) happens directly from the browser; Withings' data API is CORS-open.
 
@@ -146,7 +170,7 @@ a small, stateless Azure Function that does only the token exchange and refresh.
    name, description, and a callback URI matching your deployed origin **byte-for-byte**, trailing
    slash included (e.g. `https://mikokono.de/Google-Health-Web-Dashboard/`). Note the client ID and
    secret.
-2. Deploy the broker: see [api/README.md](api/README.md) — `azd up` provisions an Azure Function
+2. Deploy the broker: see [broker/README.md](broker/README.md) — `azd up` provisions an Azure Function
    (Flex Consumption, scales to zero) and wires the secret in as an app setting.
 3. Set `VITE_WITHINGS_CLIENT_ID` and `VITE_WITHINGS_BROKER_URL` (copy `.env.example` to
    `.env.local` for local dev, or the repo variables described below for the deployed site).
@@ -190,7 +214,7 @@ Add these to **Settings → Secrets and variables → Actions → Variables** al
 `VITE_GOOGLE_CLIENT_ID` for the Withings side to work: `VITE_WITHINGS_CLIENT_ID`,
 `VITE_WITHINGS_BROKER_URL`. The Function itself deploys separately, via
 [.github/workflows/deploy-function.yml](.github/workflows/deploy-function.yml) — see
-[api/README.md](api/README.md) for the secrets and OIDC setup it needs.
+[broker/README.md](broker/README.md) for the secrets and OIDC setup it needs.
 
 ## Notes
 
@@ -211,5 +235,5 @@ Add these to **Settings → Secrets and variables → Actions → Variables** al
 - Withings' token endpoint reports every "Invalid Params" failure — a wrong `client_secret`, a dead
   refresh token, a bad code — as the same generic status. The broker separates them by matching the
   one wording Withings appears to reserve for credential problems ("invalid client id/secret");
-  see the comment in [api/src/lib/withings.ts](api/src/lib/withings.ts) for the evidence and the
+  see the comment in [broker/src/lib/withings.ts](broker/src/lib/withings.ts) for the evidence and the
   reasoning. It is a heuristic, not a documented contract.
