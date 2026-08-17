@@ -3,6 +3,7 @@ import { useWithingsAuth } from './auth/withings/WithingsAuthContext'
 import Dashboard from './components/Dashboard'
 import Header from './components/Header'
 import SignIn from './components/SignIn'
+import SleepSection from './components/SleepSection'
 import Tabs, { tabPanelId } from './components/Tabs'
 import TechnicalDetails from './components/TechnicalDetails'
 import TimeRangeSelect from './components/TimeRangeSelect'
@@ -15,7 +16,7 @@ import { useWithingsData } from './state/withingsData'
 export default function App() {
   const google = useGoogleAuth()
   const withings = useWithingsAuth()
-  const { visible, outcomes } = useGoogleData()
+  const { visible, records, outcomes } = useGoogleData()
   const { groups } = useWithingsData()
   const [tab, setTab] = useTabState()
 
@@ -25,8 +26,10 @@ export default function App() {
   const bothStillLoading = google.status === 'loading' && withings.status === 'loading'
 
   const failedCount = outcomes.filter((outcome) => outcome.status === 'error').length
+  const sleepCount = records.filter((record) => record.dataType.id === 'sleep').length
   const badges: Partial<Record<TabId, string>> = {
     google: signedIn ? String(visible.length) : undefined,
+    sleep: signedIn ? String(sleepCount) : undefined,
     withings: connected ? String(groups.length) : undefined,
     technical: failedCount > 0 ? `${failedCount} !` : undefined,
   }
@@ -41,6 +44,14 @@ export default function App() {
           <p className="muted">Restoring Google session…</p>
         ) : signedIn ? (
           <Dashboard />
+        ) : (
+          <SignIn />
+        )
+      case 'sleep':
+        return google.status === 'loading' ? (
+          <p className="muted">Restoring Google session…</p>
+        ) : signedIn ? (
+          <SleepSection />
         ) : (
           <SignIn />
         )

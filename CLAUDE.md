@@ -97,6 +97,31 @@ Data flows **auth → fetch → normalize → group → render**.
   breaking the row. Unrecognized data is always still visible under Raw JSON. **When adding a data
   type, prefer adding `summaryKeys` over special-casing here.**
 
+- **Sleep** (`src/api/google/sleep.ts`, `sleepMetrics.ts`, `src/charts/Hypnogram.tsx`). The one
+  place that deliberately breaks the "prefer `summaryKeys` over special-casing" rule above, and it
+  has to: `sleepStages` is an **array of objects**, and `flatten()` collapses those to
+  `"34 entries"`. A stage timeline is unrecoverable from a flattener, so sleep gets a typed parser
+  and `normalize.ts` stays structural. Do not merge them.
+
+  Three things about this corner are easy to get wrong:
+
+  - **Overnight HRV and heart rate are not a join.** `daily-heart-rate-variability` already carries
+    `deepSleepRootMeanSquareOfSuccessiveDifferencesMilliseconds` (HRV while asleep) and
+    `nonRemHeartRateBeatsPerMinute` (heart rate while asleep), both computed over the night. There
+    is no need to intersect raw HRV samples with the sleep interval — don't build it.
+  - **Daily metrics are keyed on the morning a night *ended*.** A session from 23:40 to 07:10 is
+    the *next* day's HRV record. Keying on the start date silently pairs every night with the
+    wrong day's numbers, and nothing about the result looks broken.
+  - **Stage totals come from `sleepSummary.stageSummaries` when present**, segments otherwise. The
+    summary is what the Google Health app shows, and matching the app matters more than matching
+    our own hypnogram. They are different fields, so they *can* disagree; the raw JSON on the card
+    is how you'd settle it.
+
+  **Sleep Score and recovery are not in this API.** No data type exposes them, and no message in
+  `google.devicesandservices.health.v4` carries a score field — they are computed in the Google
+  Health app and on the watch. This has been checked against the full data-type enumeration and
+  the RPC reference; the sleep view says so on the page so it doesn't read as a bug.
+
 - **Render** (`src/components/`). `Dashboard.tsx` orchestrates controls + list; it refetches when
   data-type selection / lookback / page size change, but applies the text `query` and the
   `showAll` toggle **client-side without refetching**. A `requestId` ref guards against a slow
