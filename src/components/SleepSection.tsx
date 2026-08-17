@@ -1,14 +1,14 @@
 import { useMemo } from 'react'
 import { SLEEP_METRIC_IDS } from '../api/google/dataTypes'
-import { sleepNights } from '../api/google/sleep'
 import { metricsForNight, nightMetricsByDate } from '../api/google/sleepMetrics'
 import { useGoogleData } from '../state/googleData'
 import SleepNightCard from './SleepNightCard'
 
 export default function SleepSection() {
-  const { controls, setControls, records, loading, loadedAt, reload } = useGoogleData()
+  // Nights are parsed once in the provider; Dashboard needs the same list for
+  // the sub-tab badge, and parsing it twice would be pure waste.
+  const { controls, setControls, records, nights, loading, loadedAt } = useGoogleData()
 
-  const nights = useMemo(() => sleepNights(records), [records])
   const byDate = useMemo(() => nightMetricsByDate(records), [records])
 
   // The cardio types live in the Metrics category, so a trimmed selection can
@@ -25,17 +25,14 @@ export default function SleepSection() {
 
   return (
     <>
+      {/* No Refresh button here: Controls sits directly above both sub-tabs and
+          already has one. Two would just be two. */}
       <div className="list-header">
         <h2>Sleep</h2>
-        <div className="list-header-actions">
-          <span className="muted">
-            {nights.length} {nights.length === 1 ? 'night' : 'nights'}
-            {loadedAt && ` · updated ${loadedAt.toLocaleTimeString()}`}
-          </span>
-          <button type="button" className="btn btn-small" onClick={reload} disabled={loading}>
-            {loading ? 'Loading…' : 'Refresh'}
-          </button>
-        </div>
+        <span className="muted">
+          {nights.length} {nights.length === 1 ? 'night' : 'nights'}
+          {loadedAt && ` · updated ${loadedAt.toLocaleTimeString()}`}
+        </span>
       </div>
 
       {missingMetricIds.length > 0 && (

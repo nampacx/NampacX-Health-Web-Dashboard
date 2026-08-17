@@ -21,12 +21,11 @@ or connect both. Neither needs the other.
 
 ## ✨ What you get
 
-Four tabs:
+Three tabs — one per data source:
 
 | Tab | What's in it |
 | --- | --- |
-| 🏃 **Google Health** | Steps, distance, floors, active minutes, calories, workouts, sleep — grouped by day, newest first. Every other data type is one click away in the picker. |
-| 😴 **Sleep** | A proper stage timeline per night (awake / REM / light / deep), composition bar, time in bed, efficiency, short awakenings — plus HRV and heart rate *while you were asleep*. |
+| 🏃 **Google Health** | Two views, sharing one data-type picker and time range:<br>😴 **Sleep** — a proper stage timeline per night (awake / REM / light / deep), composition bar, time in bed, efficiency, short awakenings, plus HRV and heart rate *while you were asleep*.<br>🏃 **All activity** — steps, distance, floors, active minutes, calories, workouts and everything else you've selected, grouped by day, newest first. |
 | ⚖️ **Withings** | Weight and fat-ratio charts over time, and a card per weigh-in with the change since the last one. |
 | 🔧 **Technical details** | Raw fetch outcomes, token state, the boring-but-useful debugging view. |
 

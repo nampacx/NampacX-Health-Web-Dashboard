@@ -72,15 +72,6 @@ export default function Controls({ state, onChange, onRefresh, loading }: Props)
           />
         </label>
 
-        <label className="field field-inline">
-          <input
-            type="checkbox"
-            checked={state.showAll}
-            onChange={(event) => onChange({ ...state, showAll: event.target.checked })}
-          />
-          <span>Show all activities</span>
-        </label>
-
         <button type="button" className="btn" onClick={onRefresh} disabled={loading}>
           {loading ? 'Loading…' : 'Refresh'}
         </button>

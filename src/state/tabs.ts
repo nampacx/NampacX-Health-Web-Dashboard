@@ -1,22 +1,27 @@
 import { useCallback, useState } from 'react'
 
-export const TAB_IDS = ['google', 'sleep', 'withings', 'technical'] as const
+/** Top level: one tab per data source. */
+export const TAB_IDS = ['google', 'withings', 'technical'] as const
 export type TabId = (typeof TAB_IDS)[number]
 
 export const TAB_LABELS: Record<TabId, string> = {
   google: 'Google Health',
-  sleep: 'Sleep',
   withings: 'Withings',
   technical: 'Technical details',
 }
 
-/** Tabs that need the Google session. Sleep is Google data under its own tab. */
-export const GOOGLE_TABS: readonly TabId[] = ['google', 'sleep']
+/**
+ * Inside the Google tab. Sleep used to sit at the top level beside Google
+ * Health, which read as a third provider — it is not, it is one view of the
+ * same records, and it needs the same data-type selection and time range as
+ * the activity list.
+ */
+export const GOOGLE_TAB_IDS = ['sleep', 'activity'] as const
+export type GoogleTabId = (typeof GOOGLE_TAB_IDS)[number]
 
-const STORAGE_KEY = 'ghd.tab'
-
-function isTabId(value: string | null): value is TabId {
-  return value !== null && (TAB_IDS as readonly string[]).includes(value)
+export const GOOGLE_TAB_LABELS: Record<GoogleTabId, string> = {
+  sleep: 'Sleep',
+  activity: 'All activity',
 }
 
 /**
@@ -25,25 +30,41 @@ function isTabId(value: string | null): value is TabId {
  * bounce you back to the first tab. sessionStorage rather than localStorage to
  * match how the Google token is scoped: the session dies with the tab.
  */
-export function useTabState(initial: TabId = 'google'): [TabId, (next: TabId) => void] {
-  const [tab, setTabState] = useState<TabId>(() => {
+function useStoredTab<T extends string>(
+  ids: readonly T[],
+  storageKey: string,
+  initial: T,
+): [T, (next: T) => void] {
+  const [tab, setTabState] = useState<T>(() => {
     try {
-      const stored = sessionStorage.getItem(STORAGE_KEY)
-      return isTabId(stored) ? stored : initial
+      const stored = sessionStorage.getItem(storageKey)
+      return stored !== null && (ids as readonly string[]).includes(stored) ? (stored as T) : initial
     } catch {
       // Private-mode Safari and friends throw on storage access.
       return initial
     }
   })
 
-  const setTab = useCallback((next: TabId) => {
-    setTabState(next)
-    try {
-      sessionStorage.setItem(STORAGE_KEY, next)
-    } catch {
-      // Losing the preference is not worth breaking navigation over.
-    }
-  }, [])
+  const setTab = useCallback(
+    (next: T) => {
+      setTabState(next)
+      try {
+        sessionStorage.setItem(storageKey, next)
+      } catch {
+        // Losing the preference is not worth breaking navigation over.
+      }
+    },
+    [storageKey],
+  )
 
   return [tab, setTab]
+}
+
+export function useTabState(initial: TabId = 'google') {
+  return useStoredTab(TAB_IDS, 'ghd.tab', initial)
+}
+
+/** Separate storage key, so the two tab bars remember themselves independently. */
+export function useGoogleTabState(initial: GoogleTabId = 'sleep') {
+  return useStoredTab(GOOGLE_TAB_IDS, 'ghd.tab.google', initial)
 }
