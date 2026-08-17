@@ -1,10 +1,31 @@
+import { useMemo } from 'react'
+import {
+  FAT_RATIO_TYPE,
+  MEASURE_TYPES_BY_TYPE,
+  WEIGHT_TYPE,
+} from '../api/withings/measureTypes'
+import { toSeries } from '../api/withings/series'
 import { useWithingsAuth } from '../auth/withings/WithingsAuthContext'
+import LineChart from '../charts/LineChart'
 import { useWithingsData } from '../state/withingsData'
 import WithingsGroupCard from './WithingsGroupCard'
+
+/** Title, unit and precision all come from the catalog, so they cannot drift. */
+function chartMeta(type: number) {
+  const def = MEASURE_TYPES_BY_TYPE.get(type)
+  return {
+    title: def?.label ?? `Type ${type}`,
+    unit: def?.unit ?? '',
+    decimals: def?.decimals ?? 1,
+  }
+}
 
 export default function WithingsSection() {
   const { disconnect } = useWithingsAuth()
   const { groups, loading, error, loadedAt, reload } = useWithingsData()
+
+  const weight = useMemo(() => toSeries(groups, WEIGHT_TYPE), [groups])
+  const fatRatio = useMemo(() => toSeries(groups, FAT_RATIO_TYPE), [groups])
 
   return (
     <>
@@ -37,11 +58,30 @@ export default function WithingsSection() {
           </p>
         </section>
       ) : (
-        <ul className="records">
-          {groups.map((group, index) => (
-            <WithingsGroupCard key={group.key} group={group} previous={groups[index + 1]} />
-          ))}
-        </ul>
+        <>
+          {/* Two charts rather than one with two y-scales: kg and % share no
+              scale, and overlaying them would invent a correlation. */}
+          <div className="charts">
+            <LineChart
+              {...chartMeta(WEIGHT_TYPE)}
+              colorVar="--series-weight"
+              points={weight}
+              loading={loading}
+            />
+            <LineChart
+              {...chartMeta(FAT_RATIO_TYPE)}
+              colorVar="--series-fat"
+              points={fatRatio}
+              loading={loading}
+            />
+          </div>
+
+          <ul className="records">
+            {groups.map((group, index) => (
+              <WithingsGroupCard key={group.key} group={group} previous={groups[index + 1]} />
+            ))}
+          </ul>
+        </>
       )}
     </>
   )
