@@ -1,5 +1,6 @@
 import {
   SLEEP_STAGES,
+  SLEEP_STAGE_DESCRIPTIONS,
   SLEEP_STAGE_LABELS,
   formatDuration,
   stageShare,
@@ -41,7 +42,7 @@ export default function StageBar({ night }: { night: SleepNight }) {
               style={{ ['--stage' as string]: `var(--stage-${stage})` }}
               aria-hidden="true"
             />
-            <span className="stage-name">{SLEEP_STAGE_LABELS[stage]}</span>
+            <span className="stage-name" title={SLEEP_STAGE_DESCRIPTIONS[stage]}>{SLEEP_STAGE_LABELS[stage]}</span>
             <span className="stage-value">{formatDuration(night.totals[stage])}</span>
             <span className="muted stage-share">
               {percentFormat.format(stageShare(night, stage))}%
