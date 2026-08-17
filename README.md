@@ -25,7 +25,7 @@ Three tabs — one per data source:
 
 | Tab | What's in it |
 | --- | --- |
-| 🏃 **Google Health** | Two views, sharing one data-type picker and time range:<br>😴 **Sleep** — a proper stage timeline per night (awake / REM / light / deep), composition bar, time in bed, efficiency, short awakenings, plus HRV and heart rate *while you were asleep*.<br>🏃 **All activity** — steps, distance, floors, active minutes, calories, workouts and everything else you've selected, grouped by day, newest first. |
+| 🏃 **Google Health** | Three views, sharing one data-type picker and time range:<br>😴 **Sleep** — a proper stage timeline per night (awake / REM / light / deep), composition bar, time in bed, efficiency, short awakenings, plus HRV and heart rate *while you were asleep*.<br>💪 **Exercise** — a card per workout with its most interesting numbers surfaced first, and totals for the window.<br>📋 **All activity** — steps, distance, floors, active minutes, calories and everything else you've selected, grouped by day, newest first. |
 | ⚖️ **Withings** | Weight and fat-ratio charts over time, and a card per weigh-in with the change since the last one. |
 | 🔧 **Technical details** | Raw fetch outcomes, token state, the boring-but-useful debugging view. |
 

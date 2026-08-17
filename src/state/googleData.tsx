@@ -10,6 +10,7 @@ import {
 } from 'react'
 import { DATA_TYPES_BY_ID, DEFAULT_SELECTED_IDS } from '../api/google/dataTypes'
 import { fetchLatestRecords } from '../api/google/healthApi'
+import { exerciseSessions, type ExerciseSession } from '../api/google/exercise'
 import { sleepNights, type SleepNight } from '../api/google/sleep'
 import type { DataTypeDef, FetchOutcome, HealthRecord } from '../api/google/types'
 import { useGoogleAuth } from '../auth/google/GoogleAuthContext'
@@ -36,10 +37,11 @@ interface GoogleDataState {
   /** `records` with the query filter applied. */
   visible: HealthRecord[]
   /**
-   * The sleep records, parsed. Lifted here so the Sleep sub-tab and the badge
-   * counting its nights share one parse rather than each doing their own.
+   * The sleep and exercise records, parsed. Lifted here so each sub-tab and the
+   * badge counting its rows share one parse rather than each doing their own.
    */
   nights: SleepNight[]
+  sessions: ExerciseSession[]
   outcomes: FetchOutcome[]
   loading: boolean
   error: string | null
@@ -155,6 +157,7 @@ export function GoogleDataProvider({ children }: { children: ReactNode }) {
   }, [records, controls.query])
 
   const nights = useMemo(() => sleepNights(records), [records])
+  const sessions = useMemo(() => exerciseSessions(records), [records])
 
   const value = useMemo<GoogleDataState>(
     () => ({
@@ -163,13 +166,14 @@ export function GoogleDataProvider({ children }: { children: ReactNode }) {
       records,
       visible,
       nights,
+      sessions,
       outcomes,
       loading,
       error,
       loadedAt,
       reload: () => void load(),
     }),
-    [controls, records, visible, nights, outcomes, loading, error, loadedAt, load],
+    [controls, records, visible, nights, sessions, outcomes, loading, error, loadedAt, load],
   )
 
   return <GoogleDataContext.Provider value={value}>{children}</GoogleDataContext.Provider>

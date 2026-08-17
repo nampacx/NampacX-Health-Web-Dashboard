@@ -16,7 +16,12 @@
  * authority. If a field ever needs adding, get a real payload first.
  */
 
+import { parseInterval, parseTime } from './time'
 import type { HealthRecord } from './types'
+
+// Re-exported so sleep's own consumers keep one import; the implementations
+// live in time.ts because exercise sessions need exactly the same handling.
+export { clockLabel, localDateKey, parseOffsetSeconds, wallClock } from './time'
 
 export type SleepStage = 'awake' | 'rem' | 'light' | 'deep'
 
@@ -119,44 +124,6 @@ export function parseStageType(value: unknown): SleepStage | null {
   }
 }
 
-/** `"7200s"` -> 7200. Absent or unparseable means "no offset known". */
-export function parseOffsetSeconds(value: unknown): number {
-  if (typeof value !== 'string') return 0
-  const match = /^(-?\d+(?:\.\d+)?)s$/.exec(value.trim())
-  return match ? Number(match[1]) : 0
-}
-
-function parseTime(value: unknown): Date | null {
-  if (typeof value !== 'string' || !value) return null
-  const parsed = new Date(value)
-  return Number.isNaN(parsed.getTime()) ? null : parsed
-}
-
-/**
- * The wall clock the sleeper saw, as a Date whose **UTC** getters read as local
- * time at the recording site. Only ever formatted with `getUTC*`; treating it
- * as an instant would be wrong by exactly the offset.
- */
-export function wallClock(instant: Date, offsetSeconds: number): Date {
-  return new Date(instant.getTime() + offsetSeconds * 1000)
-}
-
-function pad(value: number): string {
-  return String(value).padStart(2, '0')
-}
-
-/** `22:18` in the zone the night was recorded in. 24-hour: nights cross midnight. */
-export function clockLabel(instant: Date, offsetSeconds: number): string {
-  const shifted = wallClock(instant, offsetSeconds)
-  return `${pad(shifted.getUTCHours())}:${pad(shifted.getUTCMinutes())}`
-}
-
-/** `2026-08-17` in the recording zone — the key daily metrics are filed under. */
-export function localDateKey(instant: Date, offsetSeconds: number): string {
-  const shifted = wallClock(instant, offsetSeconds)
-  return `${shifted.getUTCFullYear()}-${pad(shifted.getUTCMonth() + 1)}-${pad(shifted.getUTCDate())}`
-}
-
 function emptyTotals(): Record<SleepStage, number> {
   return { awake: 0, rem: 0, light: 0, deep: 0 }
 }
@@ -216,20 +183,6 @@ function parseStagesSummary(summary: unknown): SummaryTotals {
   }
 
   return { totals, episodes, matched }
-}
-
-/** Reads the session bounds, whether nested under `interval` or at the top. */
-function parseInterval(sleep: Json): {
-  start: Date | null
-  end: Date | null
-  offsetSeconds: number
-} {
-  const interval = isObject(sleep.interval) ? sleep.interval : sleep
-  return {
-    start: parseTime(interval.startTime),
-    end: parseTime(interval.endTime),
-    offsetSeconds: parseOffsetSeconds(interval.startUtcOffset),
-  }
 }
 
 /** Parses one `sleep` payload — the object under the data point's `sleep` key. */

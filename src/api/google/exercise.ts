@@ -1,0 +1,209 @@
+/**
+ * Exercise sessions, for the Exercise sub-tab.
+ *
+ * **Deliberately not a typed schema.** Sleep needed one because a stage
+ * timeline cannot survive the generic flattener; exercise does not have that
+ * problem, and it has the opposite one — the fields differ per activity. A run
+ * carries distance and pace, a swim carries lengths, a strength session carries
+ * almost nothing. Pinning a shape would mean picking one activity to render
+ * well and quietly dropping the rest.
+ *
+ * So this reads whatever `normalize.ts` already flattened out of the payload
+ * and **ranks** it, rather than naming fields it requires. The documented names
+ * (`metricsSummary.caloriesKcal`, `distanceMillimeters`, …) appear only in the
+ * ranking patterns below, so if any of them is wrong the stat still shows up —
+ * just further down the card. It cannot blank out the way the first sleep
+ * parser did.
+ */
+
+import { payloadLeaves, type PayloadLeaf } from './normalize'
+import { parseDurationMs, parseInterval } from './time'
+import type { HealthRecord, RawDataPoint } from './types'
+
+export interface ExerciseStat extends PayloadLeaf {}
+
+export interface ExerciseSession {
+  key: string
+  /** `displayName`, else a humanized `exerciseType`, else "Workout". */
+  title: string
+  exerciseType: string | null
+  start: Date | null
+  end: Date | null
+  utcOffsetSeconds: number
+  durationMs: number | null
+  /** True when the duration came from `activeDuration`, which excludes pauses. */
+  durationIsActive: boolean
+  /** Most interesting first. */
+  stats: ExerciseStat[]
+  /** Lap / split count, 0 when the session has none. */
+  splits: number
+  raw: RawDataPoint
+}
+
+type Json = Record<string, unknown>
+
+function isObject(value: unknown): value is Json {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+/**
+ * What a workout card leads with, most interesting first. Matched against the
+ * leaf's path, so `metricsSummary.caloriesKcal` and a hypothetical
+ * `summary.totalCalories` both land in the same slot.
+ *
+ * These are *hints*: an unmatched stat is not dropped, it sorts after the
+ * matched ones in payload order.
+ */
+const STAT_ORDER: RegExp[] = [
+  /calorie|kcal|energy/i,
+  /distance/i,
+  /(average|avg|mean).*heart|heart.*(average|avg|mean)/i,
+  /(max|peak).*heart|heart.*(max|peak)/i,
+  /heart|bpm/i,
+  /pace|speed|velocity/i,
+  /step/i,
+  /zoneminutes|activeminutes/i,
+  /elevation|ascent|descent|floor|altitude/i,
+  /cadence/i,
+  /power|watt/i,
+  /lap|split|length|swolf|stroke/i,
+]
+
+function rankOf(path: string): number {
+  const index = STAT_ORDER.findIndex((pattern) => pattern.test(path))
+  return index === -1 ? STAT_ORDER.length : index
+}
+
+/**
+ * Leaves that belong in the card's header rather than its stat grid, or that
+ * carry no information at all.
+ *
+ * `flatten` renders an array of objects as `"3 entries"`, which is useless as a
+ * stat — the interesting part of `splitSummaries` is its *count*, extracted
+ * separately below.
+ */
+function isHeaderOrNoise(leaf: PayloadLeaf): boolean {
+  const last = (leaf.path.split('.').pop() ?? '').toLowerCase()
+  if (last === 'displayname' || last === 'exercisetype' || last === 'activeduration') return true
+  if (/ entries$/.test(leaf.text)) return true
+  return false
+}
+
+/** `RUNNING` -> `Running`, `HIGH_INTENSITY_INTERVAL_TRAINING` -> `High intensity…`. */
+export function humanizeExerciseType(value: string): string {
+  const words = value.toLowerCase().replace(/_/g, ' ').trim()
+  return words.charAt(0).toUpperCase() + words.slice(1)
+}
+
+/** Finds a leaf by the last segment of its path, case-insensitively. */
+function leafBySegment(leaves: PayloadLeaf[], segment: string): PayloadLeaf | undefined {
+  return leaves.find((leaf) => (leaf.path.split('.').pop() ?? '').toLowerCase() === segment)
+}
+
+/**
+ * Counts laps. Looks for an array of objects under a key that reads like a
+ * split rather than requiring `splitSummaries` exactly, so a renamed field
+ * still counts.
+ */
+function countSplits(payload: Json): number {
+  for (const [key, value] of Object.entries(payload)) {
+    if (!/split|lap/i.test(key)) continue
+    if (Array.isArray(value)) return value.length
+  }
+  return 0
+}
+
+/** The payload object, with the same envelope fallback `sleepNights` uses. */
+function extractPayload(raw: RawDataPoint): Json {
+  if (isObject(raw.exercise)) return raw.exercise
+  const found = Object.entries(raw).find(
+    ([key, value]) => key !== 'name' && key !== 'dataSource' && isObject(value),
+  )
+  return found ? (found[1] as Json) : {}
+}
+
+export function parseExerciseRecord(record: HealthRecord): ExerciseSession {
+  const payload = extractPayload(record.raw)
+  const leaves = payloadLeaves(record.raw, record.dataType)
+
+  const { start, end, offsetSeconds } = parseInterval(payload)
+
+  const displayName =
+    typeof payload.displayName === 'string' && payload.displayName
+      ? payload.displayName
+      : (leafBySegment(leaves, 'displayname')?.text ?? null)
+
+  const exerciseType =
+    typeof payload.exerciseType === 'string' && payload.exerciseType
+      ? payload.exerciseType
+      : (leafBySegment(leaves, 'exercisetype')?.text ?? null)
+
+  // `activeDuration` excludes pauses, so it beats end - start when present.
+  const activeMs = parseDurationMs(payload.activeDuration)
+  const spanMs = start && end ? Math.max(0, end.getTime() - start.getTime()) : null
+
+  const stats = leaves
+    .filter((leaf) => !isHeaderOrNoise(leaf))
+    // Stable by construction: `sort` is stable in every engine this runs on, so
+    // equal ranks keep payload order.
+    .sort((a, b) => rankOf(a.path) - rankOf(b.path))
+
+  return {
+    key: record.key,
+    title: displayName ?? (exerciseType ? humanizeExerciseType(exerciseType) : 'Workout'),
+    exerciseType,
+    start,
+    end,
+    utcOffsetSeconds: offsetSeconds,
+    durationMs: activeMs ?? spanMs,
+    durationIsActive: activeMs !== null,
+    stats,
+    splits: countSplits(payload),
+    raw: record.raw,
+  }
+}
+
+/** The exercise records, parsed and sorted newest-first. */
+export function exerciseSessions(records: HealthRecord[]): ExerciseSession[] {
+  return records
+    .filter((record) => record.dataType.id === 'exercise')
+    .map(parseExerciseRecord)
+    .sort((a, b) => (b.start?.getTime() ?? 0) - (a.start?.getTime() ?? 0))
+}
+
+export interface ExerciseTotals {
+  sessions: number
+  durationMs: number
+  /** Null when no session reported a calorie figure. */
+  caloriesKcal: number | null
+}
+
+/**
+ * Window totals for the strip above the cards.
+ *
+ * Calories are summed only from leaves whose path says `kcal` — the one unit
+ * the field name reliably carries. A joules field would otherwise be added to a
+ * kcal one and the total would be nonsense, which is worse than no total.
+ */
+export function exerciseTotals(sessions: ExerciseSession[]): ExerciseTotals {
+  let durationMs = 0
+  let calories = 0
+  let sawCalories = false
+
+  for (const session of sessions) {
+    durationMs += session.durationMs ?? 0
+    for (const stat of session.stats) {
+      if (stat.numeric === null || !/kcal/i.test(stat.path)) continue
+      calories += stat.numeric
+      sawCalories = true
+      // One calorie figure per session; a splits breakdown would double-count.
+      break
+    }
+  }
+
+  return {
+    sessions: sessions.length,
+    durationMs,
+    caloriesKcal: sawCalories ? calories : null,
+  }
+}
