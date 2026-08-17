@@ -146,11 +146,24 @@ Data flows **auth → fetch → normalize → group → render**.
   Health app and on the watch. This has been checked against the full data-type enumeration and
   the RPC reference; the sleep view says so on the page so it doesn't read as a bug.
 
-- **Render** (`src/components/`). `Dashboard.tsx` orchestrates controls + list; it refetches when
-  data-type selection / lookback / page size change, but applies the text `query` and the
-  `showAll` toggle **client-side without refetching**. A `requestId` ref guards against a slow
-  earlier request overwriting a newer result. Note: with `showAll` off, the list is filtered to
-  only `exercise` and `sleep` records (the default focus view).
+- **Render** (`src/components/`). `Dashboard.tsx` owns the Google tab: controls, fetch outcomes,
+  and a **sub-tab bar** (Sleep / All activity, `GOOGLE_TAB_IDS` in `state/tabs.ts`). It refetches
+  when data-type selection / lookback / page size change, but applies the text `query`
+  **client-side without refetching**. A `requestId` ref guards against a slow earlier request
+  overwriting a newer result.
+
+  Two structural points here:
+
+  - **Controls sit above the sub-tabs, not inside one.** The data-type selection and time range
+    decide what *both* views have to work with; nesting them under one sub-tab would imply they
+    only apply there.
+  - **`Tabs.tsx` is generic over the tab id** and takes an `idPrefix`. That prefix is load-bearing
+    now that tab bars nest: two elements with `id="tab-sleep"` would break `aria-controls` for
+    both tablists. Each bar also stores its position under its own sessionStorage key.
+
+  There used to be a "show all activities" checkbox that filtered the list down to `exercise` and
+  `sleep`. It went when Sleep got its own sub-tab — it had become a control whose default hid most
+  of what had just been fetched.
 
 ### Withings
 

@@ -10,6 +10,7 @@ import {
 } from 'react'
 import { DATA_TYPES_BY_ID, DEFAULT_SELECTED_IDS } from '../api/google/dataTypes'
 import { fetchLatestRecords } from '../api/google/healthApi'
+import { sleepNights, type SleepNight } from '../api/google/sleep'
 import type { DataTypeDef, FetchOutcome, HealthRecord } from '../api/google/types'
 import { useGoogleAuth } from '../auth/google/GoogleAuthContext'
 import { useTimeRange } from './timeRange'
@@ -25,16 +26,20 @@ export interface GoogleControlsState {
   selectedIds: string[]
   pageSize: number
   query: string
-  showAll: boolean
 }
 
 interface GoogleDataState {
   controls: GoogleControlsState
   setControls: (next: GoogleControlsState) => void
-  /** Everything that came back, ignoring the query and showAll filters. */
+  /** Everything that came back, ignoring the query filter. */
   records: HealthRecord[]
-  /** `records` with the query and showAll filters applied. */
+  /** `records` with the query filter applied. */
   visible: HealthRecord[]
+  /**
+   * The sleep records, parsed. Lifted here so the Sleep sub-tab and the badge
+   * counting its nights share one parse rather than each doing their own.
+   */
+  nights: SleepNight[]
   outcomes: FetchOutcome[]
   loading: boolean
   error: string | null
@@ -46,7 +51,6 @@ const INITIAL_CONTROLS: GoogleControlsState = {
   selectedIds: DEFAULT_SELECTED_IDS,
   pageSize: 10,
   query: '',
-  showAll: false,
 }
 
 function matchesQuery(record: HealthRecord, query: string): boolean {
@@ -140,17 +144,17 @@ export function GoogleDataProvider({ children }: { children: ReactNode }) {
     setError(null)
   }, [status])
 
+  // The list used to be filtered to exercise + sleep unless a "show all
+  // activities" checkbox was ticked. Sleep has its own sub-tab now, so the
+  // activity list is simply everything -- the checkbox had become a way to hide
+  // most of what you had just asked the API for.
   const visible = useMemo(() => {
-    let filtered = records
-    if (!controls.showAll) {
-      filtered = filtered.filter(
-        (record) => record.dataType.id === 'exercise' || record.dataType.id === 'sleep',
-      )
-    }
     const query = controls.query.trim().toLowerCase()
-    if (!query) return filtered
-    return filtered.filter((record) => matchesQuery(record, query))
-  }, [records, controls.query, controls.showAll])
+    if (!query) return records
+    return records.filter((record) => matchesQuery(record, query))
+  }, [records, controls.query])
+
+  const nights = useMemo(() => sleepNights(records), [records])
 
   const value = useMemo<GoogleDataState>(
     () => ({
@@ -158,13 +162,14 @@ export function GoogleDataProvider({ children }: { children: ReactNode }) {
       setControls,
       records,
       visible,
+      nights,
       outcomes,
       loading,
       error,
       loadedAt,
       reload: () => void load(),
     }),
-    [controls, records, visible, outcomes, loading, error, loadedAt, load],
+    [controls, records, visible, nights, outcomes, loading, error, loadedAt, load],
   )
 
   return <GoogleDataContext.Provider value={value}>{children}</GoogleDataContext.Provider>

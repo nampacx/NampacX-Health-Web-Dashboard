@@ -640,6 +640,42 @@ code {
   border: 1px solid var(--border);
 }
 
+/* The in-panel bar, for the Google tab's Sleep / All activity switch. Visibly
+   subordinate to the bar above it -- a pill row rather than a second underlined
+   strip, so two stacked tablists never read as one ambiguous level. */
+.tabs-sub {
+  gap: 6px;
+  border-bottom: none;
+  padding: 3px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  align-self: flex-start;
+  max-width: 100%;
+}
+
+.tabs-sub .tab {
+  border-bottom: none;
+  border-radius: 999px;
+  margin-bottom: 0;
+  padding: 6px 14px;
+  font-size: 0.85rem;
+}
+
+.tabs-sub .tab-active {
+  background: var(--surface);
+  color: var(--accent);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.08);
+}
+
+.tabs-sub .tab:focus-visible {
+  border-radius: 999px;
+}
+
+.tabs-sub .tab:not(.tab-active) .tab-badge {
+  background: transparent;
+}
+
 .tab-panel {
   display: flex;
   flex-direction: column;
