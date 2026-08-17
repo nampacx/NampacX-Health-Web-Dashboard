@@ -126,12 +126,23 @@ weigh-in.
   and Withings' habit of reporting failures as HTTP 200 with a `status` in the body is mapped to
   real errors here.
 
-- **Measure catalog** (`src/api/withings/measureTypes.ts`). `MEASURE_TYPES` **labels and orders**
-  types; it deliberately does **not** filter — an unknown type still renders as `Type <n>` so a
-  firmware update can't silently hide data. Section membership is a *separate* explicit list,
-  `BODY_COMPOSITION_TYPES`. **Keep those two apart.** Deriving membership from the catalog is a
-  live bug: heart pulse (11) is in the catalog for labelling but is also emitted by the blood-
-  pressure monitor, so a derived set would file every BP reading as a weigh-in.
+- **Measure catalog** (`src/api/withings/measureTypes.ts`). Three lists that look redundant and are
+  not — they answer different questions, and **each must stay independently written out**:
+
+  | List | Question |
+  | --- | --- |
+  | `MEASURE_TYPES` | What is this type called, in what unit, at what precision? |
+  | `BODY_COMPOSITION_TYPES` | Is this group a weigh-in at all? |
+  | `CARD_MEASURE_TYPES` | Which measures does a weigh-in card put on screen? |
+
+  `MEASURE_TYPES` **labels and orders**; it deliberately does **not** filter — an unknown type
+  still renders as `Type <n>` so a firmware update can't silently hide data. Deriving membership
+  from the catalog was a live bug: heart pulse (11) is in the catalog for labelling but is also
+  emitted by the blood-pressure monitor, so a derived set filed every BP reading as a weigh-in.
+  The other two disagree in both directions today — visceral fat (122) marks a weigh-in but is not
+  carded, basal metabolic rate (226) is carded but never marks one alone — so deriving either from
+  the other is equally wrong. Anything left off the card is still under Raw JSON: the card is
+  narrowed, no data is dropped.
 
 - **Normalize** (`src/api/withings/normalize.ts`). Applies Withings' `value × 10^unit` scaling,
   drops `category !== 1` (a weight *goal* must never render as a weigh-in), dedupes by `grpid`

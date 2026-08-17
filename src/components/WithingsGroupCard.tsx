@@ -1,5 +1,5 @@
 import type { Measure, MeasureGroup } from '../api/withings/types'
-import { formatDelta, formatMeasureValue } from '../api/withings/measureTypes'
+import { cardMeasures, formatDelta, formatMeasureValue } from '../api/withings/measureTypes'
 
 const dateTimeFormat = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' })
 const relativeFormat = new Intl.RelativeTimeFormat(undefined, { numeric: 'auto' })
@@ -40,7 +40,8 @@ interface Props {
 }
 
 export default function WithingsGroupCard({ group, previous }: Props) {
-  const [headline, ...rest] = group.measures
+  // Narrowed to the card list; the full group is still under Raw JSON below.
+  const [headline, ...rest] = cardMeasures(group.measures)
   const headlineDelta = headline ? findDelta(headline, previous) : null
 
   return (

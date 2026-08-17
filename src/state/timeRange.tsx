@@ -10,7 +10,8 @@ interface TimeRangeState {
   setLookbackDays: (days: number) => void
 }
 
-const DEFAULT_LOOKBACK_DAYS = 7
+/** Two weeks, so the Withings charts open with enough points to show a trend. */
+const DEFAULT_LOOKBACK_DAYS = 14
 
 const TimeRangeContext = createContext<TimeRangeState | null>(null)
 
