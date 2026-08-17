@@ -18,6 +18,16 @@
   --series-weight: #1a73e8;
   --series-fat: #eb6834;
 
+  /* Sleep stages, validated as a 4-slot categorical palette on #ffffff:
+     lightness band, chroma floor, CVD separation (worst adjacent ΔE 15.2
+     deutan), normal-vision floor and 3:1 contrast all pass. Hue order runs
+     awake → REM → light → deep, and the two blues sit at opposite ends of the
+     adjacency list so the pair that reads most alike is never side by side. */
+  --stage-awake: #e8710a;
+  --stage-rem: #9334e6;
+  --stage-light: #0d94a8;
+  --stage-deep: #1967d2;
+
   color-scheme: light dark;
 }
 
@@ -41,6 +51,14 @@
        for a data mark. */
     --series-weight: #3987e5;
     --series-fat: #d95926;
+
+    /* Re-stepped against #1e2126, not flipped: the light steps sit above the
+       dark band (the orange at L 0.70 was the one that had to come down).
+       All five checks pass at these values. */
+    --stage-awake: #cc7a24;
+    --stage-rem: #a870ea;
+    --stage-light: #0f9f96;
+    --stage-deep: #4a7ff0;
   }
 }
 
@@ -888,4 +906,202 @@ code {
 .chart-table-value {
   text-align: right;
   font-variant-numeric: tabular-nums;
+}
+
+/* ---------- Sleep view ---------- */
+
+.sleep-nights {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 14px;
+}
+
+.sleep-night-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.sleep-night-head h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.sleep-night-head > div:first-child {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.sleep-night-headline {
+  font-size: 1.05rem;
+}
+
+.sleep-night-headline strong {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Stage composition bar. The 2px gaps are surface, not a border, so adjacent
+   fills never blend into one another. */
+.stage-bar-block {
+  margin: 14px 0 4px;
+}
+
+.stage-bar {
+  display: flex;
+  gap: 2px;
+  height: 12px;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.stage-bar-part {
+  background: var(--stage);
+  min-width: 3px;
+  border-radius: 3px;
+}
+
+.stage-totals {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+}
+
+.stage-totals li {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font-size: 0.8rem;
+}
+
+.stage-key {
+  width: 9px;
+  height: 9px;
+  border-radius: 3px;
+  background: var(--stage);
+  flex: none;
+  align-self: center;
+}
+
+.stage-name {
+  color: var(--muted);
+}
+
+.stage-value {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.stage-share {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Hypnogram */
+.hypnogram {
+  position: relative;
+  margin-top: 12px;
+}
+
+.hypnogram-svg {
+  display: block;
+  width: 100%;
+  overflow: visible;
+}
+
+.hypnogram-lane {
+  fill: var(--bg);
+}
+
+.hypnogram-lane-label,
+.hypnogram-tick {
+  fill: var(--muted);
+  font-size: 11px;
+}
+
+.hypnogram-grid {
+  stroke: var(--border);
+  stroke-width: 1;
+}
+
+.hypnogram-bar {
+  fill: var(--stage);
+  /* A surface-coloured ring keeps touching segments from reading as one bar. */
+  stroke: var(--surface);
+  stroke-width: 1;
+  cursor: pointer;
+}
+
+.hypnogram-bar-active {
+  stroke: var(--text);
+  stroke-width: 1.5;
+}
+
+.hypnogram-readout {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 6px 0 0;
+  font-size: 0.8rem;
+  min-height: 1.4em;
+}
+
+.hypnogram-empty {
+  margin: 12px 0 0;
+  font-size: 0.85rem;
+}
+
+/* Stats */
+.sleep-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 22px;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.sleep-stats-cardio {
+  margin-top: 10px;
+}
+
+.sleep-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.sleep-stat-label {
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+
+.sleep-stat-value {
+  font-size: 0.95rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.sleep-stat-hint {
+  font-size: 0.68rem;
+}
+
+.sleep-footnote {
+  margin-top: 18px;
+  font-size: 0.78rem;
+  max-width: 62ch;
+}
+
+.banner-warn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
 }

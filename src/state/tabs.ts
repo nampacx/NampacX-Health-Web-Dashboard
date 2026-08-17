@@ -1,13 +1,17 @@
 import { useCallback, useState } from 'react'
 
-export const TAB_IDS = ['google', 'withings', 'technical'] as const
+export const TAB_IDS = ['google', 'sleep', 'withings', 'technical'] as const
 export type TabId = (typeof TAB_IDS)[number]
 
 export const TAB_LABELS: Record<TabId, string> = {
   google: 'Google Health',
+  sleep: 'Sleep',
   withings: 'Withings',
   technical: 'Technical details',
 }
+
+/** Tabs that need the Google session. Sleep is Google data under its own tab. */
+export const GOOGLE_TABS: readonly TabId[] = ['google', 'sleep']
 
 const STORAGE_KEY = 'ghd.tab'
 

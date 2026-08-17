@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react'
+import { useMemo, useState, type KeyboardEvent, type PointerEvent } from 'react'
 import type { SeriesPoint } from '../api/withings/series'
 import { chartLayout, shortDate } from './scale'
+import { useElementWidth } from './useElementWidth'
 
 interface Props {
   title: string
@@ -21,23 +22,6 @@ const PAD_LEFT = 44
 const MIN_LABEL_GAP = 34
 
 const longDate = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' })
-
-/** Renders at the container's real width so axis text keeps its size at any breakpoint. */
-function useElementWidth() {
-  const ref = useRef<HTMLDivElement>(null)
-  const [width, setWidth] = useState(0)
-
-  useEffect(() => {
-    const node = ref.current
-    if (!node) return
-    const observer = new ResizeObserver(([entry]) => setWidth(entry.contentRect.width))
-    observer.observe(node)
-    setWidth(node.clientWidth)
-    return () => observer.disconnect()
-  }, [])
-
-  return [ref, width] as const
-}
 
 export default function LineChart({
   title,

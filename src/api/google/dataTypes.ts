@@ -35,7 +35,19 @@ export const DATA_TYPES: DataTypeDef[] = [
   { id: 'heart-rate', label: 'Heart rate', category: 'Metrics', scope: 'health_metrics_and_measurements.readonly' },
   { id: 'daily-resting-heart-rate', label: 'Resting heart rate', category: 'Metrics', scope: 'health_metrics_and_measurements.readonly' },
   { id: 'heart-rate-variability', label: 'HRV', category: 'Metrics', scope: 'health_metrics_and_measurements.readonly' },
-  { id: 'daily-heart-rate-variability', label: 'Daily HRV', category: 'Metrics', scope: 'health_metrics_and_measurements.readonly' },
+  {
+    id: 'daily-heart-rate-variability',
+    label: 'Daily HRV',
+    category: 'Metrics',
+    scope: 'health_metrics_and_measurements.readonly',
+    // Carries the overnight numbers the sleep view is built on: deep-sleep
+    // RMSSD and non-REM heart rate. Both are already computed over the night,
+    // so no intersection with the sleep interval is needed.
+    summaryKeys: [
+      'deepSleepRootMeanSquareOfSuccessiveDifferencesMilliseconds',
+      'averageHeartRateVariabilityMilliseconds',
+    ],
+  },
   { id: 'daily-heart-rate-zones', label: 'Daily HR zones', category: 'Metrics', scope: 'health_metrics_and_measurements.readonly' },
   { id: 'weight', label: 'Weight', category: 'Metrics', scope: 'health_metrics_and_measurements.readonly' },
   { id: 'height', label: 'Height', category: 'Metrics', scope: 'health_metrics_and_measurements.readonly' },
@@ -76,8 +88,21 @@ export const FOCUS_CATEGORIES = ['Activity', 'Sleep']
 export const CATEGORY_ORDER = [...FOCUS_CATEGORIES, 'Metrics', 'Nutrition', 'Specialised']
 
 /**
+ * The overnight cardio types the sleep view reads. They sit in Metrics rather
+ * than Sleep — Google files them as daily health metrics — so the sleep view
+ * has to name them explicitly instead of taking the Sleep category.
+ */
+export const SLEEP_METRIC_IDS = [
+  'daily-heart-rate-variability',
+  'daily-resting-heart-rate',
+  'respiratory-rate-sleep-summary',
+]
+
+/**
  * Loaded on first sign-in: the activity and sleep types, minus the niche ones
- * (VO2 max variants, swim lengths, altitude) that would mostly add empty rows.
+ * (VO2 max variants, swim lengths, altitude) that would mostly add empty rows,
+ * plus the sleep-metric types above — without them the sleep view renders
+ * stage timelines with every HRV and heart-rate row blank.
  */
 export const DEFAULT_SELECTED_IDS = [
   'steps',
@@ -89,6 +114,7 @@ export const DEFAULT_SELECTED_IDS = [
   'total-calories',
   'exercise',
   'sleep',
+  ...SLEEP_METRIC_IDS,
 ]
 
 /** Every activity and sleep type, for the "All activity + sleep" preset. */
