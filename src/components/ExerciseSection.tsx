@@ -86,6 +86,13 @@ export default function ExerciseSection() {
         which feeds it — has no field for them either. A strength session arrives as a labelled time
         window.
       </p>
+
+      <p className="muted sleep-footnote">
+        A workout marked <span className="pill">GPS</span> has a route, but the coordinates are not in
+        the workout: the API returns them only as a TCX file, per session, which is what the download
+        button fetches. There is no lat/lon field to chart and no route data type to list, so a map
+        would mean parsing the TCX. Open the file in any tool that reads Garmin exports.
+      </p>
     </>
   )
 }

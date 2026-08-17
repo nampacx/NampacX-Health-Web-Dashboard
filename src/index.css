@@ -1202,3 +1202,25 @@ code {
   font-size: 0.82rem;
   max-width: 62ch;
 }
+
+.exercise-route {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.exercise-export-error {
+  margin: 10px 0 0;
+  font-size: 0.8rem;
+}
+
+/* ---------- Profile view ---------- */
+
+.profile-stats {
+  /* No chart above it to be separated from, unlike the sleep card's stat row. */
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
+  gap: 14px 30px;
+}

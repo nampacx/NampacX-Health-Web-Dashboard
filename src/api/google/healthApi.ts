@@ -31,13 +31,21 @@ function toCivilString(date: Date): string {
   )
 }
 
-function describeHttpError(status: number, body: string, dataTypeId: string): string {
-  let apiMessage = ''
+/**
+ * The human-readable part of an error response. Exported because the endpoints
+ * outside the dataPoints collection (`profile.ts`, `exerciseTcx.ts`) need the
+ * same unwrapping but say something different about the status code.
+ */
+export function readApiMessage(body: string): string {
   try {
-    apiMessage = (JSON.parse(body) as { error?: { message?: string } }).error?.message ?? ''
+    return (JSON.parse(body) as { error?: { message?: string } }).error?.message ?? ''
   } catch {
-    apiMessage = body.slice(0, 200)
+    return body.slice(0, 200)
   }
+}
+
+function describeHttpError(status: number, body: string, dataTypeId: string): string {
+  const apiMessage = readApiMessage(body)
 
   switch (status) {
     case 401:
