@@ -1,14 +1,18 @@
 import { describe, expect, it } from 'vitest'
 import {
+  clockLabel,
   formatDuration,
-  parseDurationMs,
+  localDateKey,
+  parseOffsetSeconds,
   parseSleepPayload,
   parseStageType,
   sleepNights,
   stageShare,
 } from './sleep'
+import { FITBIT_SLEEP_NIGHT } from './sleepNight.fixture'
 import type { DataTypeDef, HealthRecord } from './types'
 
+const MINUTE = 60_000
 const SLEEP_TYPE: DataTypeDef = {
   id: 'sleep',
   label: 'Sleep',
@@ -16,227 +20,262 @@ const SLEEP_TYPE: DataTypeDef = {
   scope: 'sleep.readonly',
 }
 
-function stage(stageType: string, startIso: string, endIso: string) {
-  return { stageType, startTime: startIso, endTime: endIso }
-}
+const payload = FITBIT_SLEEP_NIGHT.sleep
+const night = parseSleepPayload(payload, 'n1', FITBIT_SLEEP_NIGHT)
 
-/** A night with 30 min awake, 1 h REM, 4 h light, 1 h 30 deep. */
-const NIGHT = {
-  startTime: '2026-08-16T23:00:00Z',
-  endTime: '2026-08-17T06:00:00Z',
-  sleepType: 'SLEEP',
-  sleepStages: [
-    stage('SLEEP_STAGE_LIGHT', '2026-08-16T23:00:00Z', '2026-08-17T01:00:00Z'),
-    stage('SLEEP_STAGE_DEEP', '2026-08-17T01:00:00Z', '2026-08-17T02:30:00Z'),
-    stage('SLEEP_STAGE_AWAKE', '2026-08-17T02:30:00Z', '2026-08-17T03:00:00Z'),
-    stage('SLEEP_STAGE_REM', '2026-08-17T03:00:00Z', '2026-08-17T04:00:00Z'),
-    stage('SLEEP_STAGE_LIGHT', '2026-08-17T04:00:00Z', '2026-08-17T06:00:00Z'),
-  ],
-  sleepMetadata: { stagesState: 'STAGES_AVAILABLE' },
-}
-
-const HOUR = 3_600_000
-
-describe('parseStageType', () => {
-  it('accepts the fully-qualified enum name', () => {
-    expect(parseStageType('SLEEP_STAGE_DEEP')).toBe('deep')
-    expect(parseStageType('SLEEP_STAGE_REM')).toBe('rem')
+/**
+ * Everything below asserts against one real night captured from a live account.
+ * The previous version of this parser passed a full suite of hand-written tests
+ * and still produced "0 min asleep" on every card, because the fixtures were
+ * built from the same wrong field names as the parser. Synthetic payloads only
+ * ever prove the parser agrees with itself.
+ */
+describe('parseSleepPayload, against a real Fitbit night', () => {
+  it('reads the session bounds from interval, not the top level', () => {
+    expect(night.start?.toISOString()).toBe('2026-08-16T20:18:00.000Z')
+    expect(night.end?.toISOString()).toBe('2026-08-17T04:16:00.000Z')
   })
 
-  it('accepts the bare form seen on some payloads', () => {
+  // The single most visible bug in the first version: `stages[].type`, not
+  // `sleepStages[].stageType`, so every segment was dropped.
+  it('finds all 23 stage segments', () => {
+    expect(night.segments).toHaveLength(23)
+    expect(night.stagesAvailable).toBe(true)
+    expect(night.segments[0].stage).toBe('awake')
+    expect(night.segments[1].stage).toBe('light')
+    expect(night.segments[2].stage).toBe('deep')
+  })
+
+  it('takes stage totals from summary.stagesSummary in minutes', () => {
+    expect(night.totals.awake).toBe(10 * MINUTE)
+    expect(night.totals.light).toBe(308 * MINUTE)
+    expect(night.totals.deep).toBe(51 * MINUTE)
+    expect(night.totals.rem).toBe(108 * MINUTE)
+  })
+
+  it('reports how fragmented each stage was', () => {
+    expect(night.episodes).toEqual({ awake: 2, light: 11, deep: 5, rem: 5 })
+  })
+
+  it('uses the summary for asleep and in-bed rather than re-deriving them', () => {
+    expect(night.timeAsleepMs).toBe(468 * MINUTE)
+    expect(night.timeInBedMs).toBe(478 * MINUTE)
+    expect(night.awakeMs).toBe(10 * MINUTE)
+    expect(night.fallAsleepMs).toBe(0)
+  })
+
+  it('computes efficiency from the summary figures', () => {
+    expect(night.efficiency).toBeCloseTo((468 / 478) * 100, 5)
+  })
+
+  it('counts the brief arousals tracked outside the stage timeline', () => {
+    expect(night.shortAwakenings).toBe(22)
+  })
+
+  it('carries the tracking type and main-sleep flag', () => {
+    expect(night.trackingType).toBe('STAGES')
+    expect(night.isMainSleep).toBe(true)
+  })
+
+  it('renders in the recording zone, not the browser zone', () => {
+    // 20:18Z at +02:00 is a 22:18 bedtime. Formatting the instant locally would
+    // agree only for a viewer who happens to sit at +02:00 as well.
+    expect(night.utcOffsetSeconds).toBe(7200)
+    expect(clockLabel(night.start!, night.utcOffsetSeconds)).toBe('22:18')
+    expect(clockLabel(night.end!, night.utcOffsetSeconds)).toBe('06:16')
+  })
+
+  it('files the night under the morning it ended, in local terms', () => {
+    expect(localDateKey(night.end!, night.utcOffsetSeconds)).toBe('2026-08-17')
+    expect(localDateKey(night.start!, night.utcOffsetSeconds)).toBe('2026-08-16')
+  })
+
+  it('agrees with the segments it drew, to within the summary rounding', () => {
+    // The summary is whole minutes; the segments carry :30 boundaries. Half a
+    // minute per stage is expected -- anything larger means they disagree.
+    const summed = night.segments.reduce<Record<string, number>>((totals, segment) => {
+      totals[segment.stage] = (totals[segment.stage] ?? 0) + segment.durationMs
+      return totals
+    }, {})
+    for (const stage of ['awake', 'light', 'deep', 'rem'] as const) {
+      expect(Math.abs(summed[stage] - night.totals[stage])).toBeLessThanOrEqual(MINUTE)
+    }
+  })
+})
+
+describe('parseSleepPayload, degraded inputs', () => {
+  it('falls back to summing the segments when there is no summary', () => {
+    const { summary: _summary, ...withoutSummary } = payload
+    const parsed = parseSleepPayload(withoutSummary, 'n1', {})
+    // 51.5 min of deep across the segments, versus the summary's 51.
+    expect(parsed.totals.deep).toBe(51.5 * MINUTE)
+    expect(parsed.timeAsleepMs).toBe(parsed.totals.rem + parsed.totals.light + parsed.totals.deep)
+  })
+
+  it('falls back to the interval span when the summary omits the period', () => {
+    const parsed = parseSleepPayload({ ...payload, summary: {} }, 'n1', {})
+    expect(parsed.timeInBedMs).toBe(478 * MINUTE)
+  })
+
+  it('reports no timeline for a night tracked without stages', () => {
+    const parsed = parseSleepPayload(
+      { interval: payload.interval, type: 'CLASSIC', summary: payload.summary },
+      'n1',
+      {},
+    )
+    expect(parsed.stagesAvailable).toBe(false)
+    expect(parsed.trackingType).toBe('CLASSIC')
+    // The summary still stands, so the night is not blank.
+    expect(parsed.timeAsleepMs).toBe(468 * MINUTE)
+  })
+
+  it('treats a nap as a nap', () => {
+    const parsed = parseSleepPayload(
+      { ...payload, metadata: { ...payload.metadata, mainSleep: false } },
+      'n1',
+      {},
+    )
+    expect(parsed.isMainSleep).toBe(false)
+  })
+
+  it('survives a completely empty payload', () => {
+    const parsed = parseSleepPayload(undefined, 'n1', {})
+    expect(parsed.timeAsleepMs).toBe(0)
+    expect(parsed.efficiency).toBeNull()
+    expect(parsed.stagesAvailable).toBe(false)
+    expect(parsed.utcOffsetSeconds).toBe(0)
+  })
+
+  it('drops zero-length and reversed segments', () => {
+    const parsed = parseSleepPayload(
+      {
+        ...payload,
+        stages: [
+          { startTime: '2026-08-17T01:00:00Z', endTime: '2026-08-17T01:00:00Z', type: 'DEEP' },
+          { startTime: '2026-08-17T03:00:00Z', endTime: '2026-08-17T02:00:00Z', type: 'REM' },
+          { startTime: '2026-08-17T04:00:00Z', endTime: '2026-08-17T05:00:00Z', type: 'LIGHT' },
+        ],
+      },
+      'n1',
+      {},
+    )
+    expect(parsed.segments).toHaveLength(1)
+    expect(parsed.segments[0].stage).toBe('light')
+  })
+
+  it('sorts segments oldest-first regardless of payload order', () => {
+    const parsed = parseSleepPayload(
+      { ...payload, stages: [...payload.stages].reverse() },
+      'n1',
+      {},
+    )
+    expect(parsed.segments[0].start.toISOString()).toBe('2026-08-16T20:18:00.000Z')
+  })
+
+  // Belt and braces: the proto reference claims these names, and if the API
+  // ever actually sends them the view should not blank out again.
+  it('also accepts the proto-reference field names', () => {
+    const parsed = parseSleepPayload(
+      {
+        startTime: '2026-08-16T22:00:00Z',
+        endTime: '2026-08-17T06:00:00Z',
+        sleepStages: [
+          {
+            startTime: '2026-08-16T22:00:00Z',
+            endTime: '2026-08-17T02:00:00Z',
+            stageType: 'SLEEP_STAGE_DEEP',
+          },
+        ],
+      },
+      'n1',
+      {},
+    )
+    expect(parsed.segments).toHaveLength(1)
+    expect(parsed.segments[0].stage).toBe('deep')
+    expect(parsed.timeInBedMs).toBe(8 * 60 * MINUTE)
+  })
+})
+
+describe('parseStageType', () => {
+  it('accepts the real bare form', () => {
+    expect(parseStageType('DEEP')).toBe('deep')
     expect(parseStageType('AWAKE')).toBe('awake')
+    expect(parseStageType('REM')).toBe('rem')
     expect(parseStageType('LIGHT')).toBe('light')
   })
 
-  // Guessing at an unknown stage would put a wrong-coloured bar on the chart;
-  // dropping it leaves an honest gap instead.
-  it('drops an unspecified or unrecognised stage rather than guessing', () => {
+  it('accepts the proto-reference form too', () => {
+    expect(parseStageType('SLEEP_STAGE_DEEP')).toBe('deep')
+  })
+
+  it('drops an unrecognised stage rather than guessing', () => {
     expect(parseStageType('SLEEP_STAGE_TYPE_UNSPECIFIED')).toBeNull()
-    expect(parseStageType('SLEEP_STAGE_SOMETHING_NEW')).toBeNull()
+    expect(parseStageType('ASLEEP')).toBeNull()
     expect(parseStageType(undefined)).toBeNull()
   })
 })
 
-describe('parseDurationMs', () => {
+describe('parseOffsetSeconds', () => {
   it('reads the protobuf duration string', () => {
-    expect(parseDurationMs('1800s')).toBe(1_800_000)
-    expect(parseDurationMs('1800.5s')).toBe(1_800_500)
+    expect(parseOffsetSeconds('7200s')).toBe(7200)
+    expect(parseOffsetSeconds('-18000s')).toBe(-18000)
   })
 
-  it('returns 0 for anything it cannot read', () => {
-    expect(parseDurationMs('1800')).toBe(0)
-    expect(parseDurationMs(undefined)).toBe(0)
-  })
-})
-
-describe('parseSleepPayload', () => {
-  it('sums stage totals from the segments when no summary is present', () => {
-    const night = parseSleepPayload(NIGHT, 'n1', NIGHT)
-    expect(night.totals.light).toBe(4 * HOUR)
-    expect(night.totals.deep).toBe(1.5 * HOUR)
-    expect(night.totals.rem).toBe(1 * HOUR)
-    expect(night.totals.awake).toBe(0.5 * HOUR)
-  })
-
-  it('counts only REM, light and deep as asleep', () => {
-    const night = parseSleepPayload(NIGHT, 'n1', NIGHT)
-    expect(night.timeAsleepMs).toBe(6.5 * HOUR)
-    expect(night.timeInBedMs).toBe(7 * HOUR)
-  })
-
-  it('derives efficiency from asleep over in-bed', () => {
-    const night = parseSleepPayload(NIGHT, 'n1', NIGHT)
-    expect(night.efficiency).toBeCloseTo((6.5 / 7) * 100, 5)
-  })
-
-  // The API's own summary is what the Google Health app shows, so it wins.
-  it('prefers sleepSummary totals over the segment sum', () => {
-    const night = parseSleepPayload(
-      {
-        ...NIGHT,
-        sleepSummary: {
-          stageSummaries: [
-            { stageType: 'SLEEP_STAGE_DEEP', duration: '7200s' },
-            { stageType: 'SLEEP_STAGE_LIGHT', duration: '10800s' },
-          ],
-        },
-      },
-      'n1',
-      {},
-    )
-    expect(night.totals.deep).toBe(2 * HOUR)
-    expect(night.totals.light).toBe(3 * HOUR)
-    // Not in the summary at all, so it is 0 rather than the segments' value.
-    expect(night.totals.rem).toBe(0)
-  })
-
-  it('falls back to the segments when the summary has no usable entries', () => {
-    const night = parseSleepPayload(
-      { ...NIGHT, sleepSummary: { stageSummaries: [{ stageType: 'NONSENSE', duration: '60s' }] } },
-      'n1',
-      {},
-    )
-    expect(night.totals.light).toBe(4 * HOUR)
-  })
-
-  it('counts a full awakening only above five minutes', () => {
-    const night = parseSleepPayload(
-      {
-        ...NIGHT,
-        sleepStages: [
-          stage('SLEEP_STAGE_AWAKE', '2026-08-17T01:00:00Z', '2026-08-17T01:02:00Z'), // 2 min
-          stage('SLEEP_STAGE_AWAKE', '2026-08-17T02:00:00Z', '2026-08-17T02:20:00Z'), // 20 min
-        ],
-      },
-      'n1',
-      {},
-    )
-    expect(night.fullAwakenings).toBe(1)
-  })
-
-  it('reports stages unavailable when the device said so', () => {
-    const night = parseSleepPayload(
-      { ...NIGHT, sleepMetadata: { stagesState: 'STAGES_UNAVAILABLE' } },
-      'n1',
-      {},
-    )
-    expect(night.stagesAvailable).toBe(false)
-  })
-
-  it('reports stages unavailable when the array is empty', () => {
-    const night = parseSleepPayload({ ...NIGHT, sleepStages: [] }, 'n1', {})
-    expect(night.stagesAvailable).toBe(false)
-    expect(night.timeInBedMs).toBe(7 * HOUR) // duration still known
-  })
-
-  it('drops zero-length and reversed segments', () => {
-    const night = parseSleepPayload(
-      {
-        ...NIGHT,
-        sleepStages: [
-          stage('SLEEP_STAGE_DEEP', '2026-08-17T01:00:00Z', '2026-08-17T01:00:00Z'),
-          stage('SLEEP_STAGE_REM', '2026-08-17T03:00:00Z', '2026-08-17T02:00:00Z'),
-          stage('SLEEP_STAGE_LIGHT', '2026-08-17T04:00:00Z', '2026-08-17T05:00:00Z'),
-        ],
-      },
-      'n1',
-      {},
-    )
-    expect(night.segments).toHaveLength(1)
-    expect(night.segments[0].stage).toBe('light')
-  })
-
-  it('sorts segments oldest-first regardless of payload order', () => {
-    const night = parseSleepPayload(
-      {
-        ...NIGHT,
-        sleepStages: [
-          stage('SLEEP_STAGE_REM', '2026-08-17T04:00:00Z', '2026-08-17T05:00:00Z'),
-          stage('SLEEP_STAGE_LIGHT', '2026-08-16T23:00:00Z', '2026-08-17T00:00:00Z'),
-        ],
-      },
-      'n1',
-      {},
-    )
-    expect(night.segments.map((s) => s.stage)).toEqual(['light', 'rem'])
-  })
-
-  it('sums out-of-bed segments', () => {
-    const night = parseSleepPayload(
-      {
-        ...NIGHT,
-        outOfBedSegments: [
-          { startTime: '2026-08-17T02:30:00Z', endTime: '2026-08-17T02:40:00Z' },
-          { startTime: '2026-08-17T05:00:00Z', endTime: '2026-08-17T05:05:00Z' },
-        ],
-      },
-      'n1',
-      {},
-    )
-    expect(night.outOfBedMs).toBe(15 * 60_000)
-  })
-
-  it('survives a completely empty payload', () => {
-    const night = parseSleepPayload(undefined, 'n1', {})
-    expect(night.timeAsleepMs).toBe(0)
-    expect(night.efficiency).toBeNull()
-    expect(night.stagesAvailable).toBe(false)
+  it('treats anything unreadable as no offset', () => {
+    expect(parseOffsetSeconds('7200')).toBe(0)
+    expect(parseOffsetSeconds(undefined)).toBe(0)
   })
 })
 
 describe('sleepNights', () => {
-  const record = (key: string, payload: unknown, id = 'sleep'): HealthRecord => ({
+  const record = (key: string, raw: Record<string, unknown>, id = 'sleep'): HealthRecord => ({
     key,
     dataType: { ...SLEEP_TYPE, id },
     timestamp: null,
     summary: null,
     details: [],
     source: null,
-    raw: { name: key, sleep: payload },
+    raw,
+  })
+
+  it('parses a real data point end to end', () => {
+    const nights = sleepNights([record('a', FITBIT_SLEEP_NIGHT)])
+    expect(nights).toHaveLength(1)
+    expect(nights[0].timeAsleepMs).toBe(468 * MINUTE)
   })
 
   it('picks out only the sleep records', () => {
     const nights = sleepNights([
-      record('a', NIGHT),
-      record('b', {}, 'steps'),
-      record('c', {}, 'daily-heart-rate-variability'),
+      record('a', FITBIT_SLEEP_NIGHT),
+      record('b', { steps: {} }, 'steps'),
     ])
-    expect(nights).toHaveLength(1)
-    expect(nights[0].key).toBe('a')
+    expect(nights.map((n) => n.key)).toEqual(['a'])
   })
 
   it('sorts nights newest-first', () => {
-    const older = { ...NIGHT, startTime: '2026-08-14T23:00:00Z' }
-    const nights = sleepNights([record('old', older), record('new', NIGHT)])
+    const older = {
+      ...FITBIT_SLEEP_NIGHT,
+      sleep: {
+        ...payload,
+        interval: { ...payload.interval, startTime: '2026-08-14T20:00:00Z' },
+      },
+    }
+    const nights = sleepNights([record('old', older), record('new', FITBIT_SLEEP_NIGHT)])
     expect(nights.map((n) => n.key)).toEqual(['new', 'old'])
+  })
+
+  // The first version read `raw.sleep` and nothing else. A renamed key should
+  // degrade, not blank every card.
+  it('finds the payload even if the envelope key changes', () => {
+    const renamed = { name: 'x', dataSource: {}, sleepSession: payload }
+    expect(sleepNights([record('a', renamed)])[0].segments).toHaveLength(23)
   })
 })
 
 describe('stageShare', () => {
   it('reports each stage as a percentage of the whole session', () => {
-    const night = parseSleepPayload(NIGHT, 'n1', {})
-    expect(stageShare(night, 'light')).toBeCloseTo((4 / 7) * 100, 5)
-    expect(stageShare(night, 'awake')).toBeCloseTo((0.5 / 7) * 100, 5)
+    expect(stageShare(night, 'deep')).toBeCloseTo((51 / 477) * 100, 5)
+    expect(stageShare(night, 'light')).toBeCloseTo((308 / 477) * 100, 5)
   })
 
   it('returns 0 rather than NaN when the night is empty', () => {
@@ -246,9 +285,9 @@ describe('stageShare', () => {
 
 describe('formatDuration', () => {
   it('reads as hours and minutes', () => {
-    expect(formatDuration(7.7 * HOUR)).toBe('7 h 42 min')
-    expect(formatDuration(2 * HOUR)).toBe('2 h')
-    expect(formatDuration(45 * 60_000)).toBe('45 min')
+    expect(formatDuration(468 * MINUTE)).toBe('7 h 48 min')
+    expect(formatDuration(120 * MINUTE)).toBe('2 h')
+    expect(formatDuration(45 * MINUTE)).toBe('45 min')
     expect(formatDuration(0)).toBe('0 min')
   })
 })

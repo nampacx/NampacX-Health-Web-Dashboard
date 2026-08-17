@@ -95,20 +95,34 @@ describe('nightMetricsByDate', () => {
   })
 })
 
+// Instants are UTC with an explicit offset rather than local Dates, so these
+// assertions mean the same thing on a CI runner in any zone.
 describe('metricsForNight', () => {
   const byDate = nightMetricsByDate([record('daily-heart-rate-variability', HRV_PAYLOAD)])
+  const OFFSET = 7200 // +02:00, as on the captured fixture night
 
   // The load-bearing one: a night starting on the 16th is the 17th's reading.
   it('keys on the morning the night ended, not the evening it began', () => {
     const night = {
-      start: new Date(2026, 7, 16, 23, 40),
-      end: new Date(2026, 7, 17, 7, 10),
+      start: new Date(Date.UTC(2026, 7, 16, 20, 18)), // 22:18 local
+      end: new Date(Date.UTC(2026, 7, 17, 4, 16)), //  06:16 local
+      utcOffsetSeconds: OFFSET,
     }
     expect(metricsForNight(byDate, night)?.deepSleepHrvMs).toBe(61.2)
   })
 
+  // The offset is not cosmetic here: 23:30Z has already rolled over to the 18th
+  // in UTC while it is still 01:30 on the 18th locally... and 22:30Z on the 16th
+  // is already the 17th at +02:00, which is the day the metrics are filed under.
+  it('resolves the calendar day in the recording zone, not in UTC', () => {
+    const night = { start: null, end: new Date(Date.UTC(2026, 7, 16, 22, 30)), utcOffsetSeconds: OFFSET }
+    expect(metricsForNight(byDate, night)?.deepSleepHrvMs).toBe(61.2)
+    // Same instant read as UTC would land on the 16th, which has no record.
+    expect(metricsForNight(byDate, { ...night, utcOffsetSeconds: 0 })).toBeNull()
+  })
+
   it('falls back to the start when a session has no end', () => {
-    const night = { start: new Date(2026, 7, 17, 1, 0), end: null }
+    const night = { start: new Date(Date.UTC(2026, 7, 17, 1, 0)), end: null, utcOffsetSeconds: OFFSET }
     expect(metricsForNight(byDate, night)?.deepSleepHrvMs).toBe(61.2)
   })
 
@@ -117,7 +131,7 @@ describe('metricsForNight', () => {
   })
 
   it('returns null for a night with no matching day', () => {
-    const night = { start: null, end: new Date(2026, 7, 1, 7, 0) }
+    const night = { start: null, end: new Date(Date.UTC(2026, 7, 1, 7, 0)), utcOffsetSeconds: OFFSET }
     expect(metricsForNight(byDate, night)).toBeNull()
   })
 })

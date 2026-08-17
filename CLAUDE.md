@@ -99,23 +99,47 @@ Data flows **auth → fetch → normalize → group → render**.
 
 - **Sleep** (`src/api/google/sleep.ts`, `sleepMetrics.ts`, `src/charts/Hypnogram.tsx`). The one
   place that deliberately breaks the "prefer `summaryKeys` over special-casing" rule above, and it
-  has to: `sleepStages` is an **array of objects**, and `flatten()` collapses those to
-  `"34 entries"`. A stage timeline is unrecoverable from a flattener, so sleep gets a typed parser
-  and `normalize.ts` stays structural. Do not merge them.
+  has to: `stages` is an **array of objects**, and `flatten()` collapses those to `"23 entries"`.
+  A stage timeline is unrecoverable from a flattener, so sleep gets a typed parser and
+  `normalize.ts` stays structural. Do not merge them.
 
-  Three things about this corner are easy to get wrong:
+  **The RPC reference does not describe the REST JSON. Do not write sleep code from the docs.**
+  This cost a full rewrite: every field name in
+  `google.devicesandservices.health.v4.Sleep` differs from what the API actually sends, so every
+  read missed and every night rendered "0 min asleep" while passing a green test suite built from
+  the same wrong names.
 
+  | RPC reference says | The API actually sends |
+  | --- | --- |
+  | `sleep.start_time` | `sleep.interval.startTime` |
+  | `sleep_stages[].stage_type` = `SLEEP_STAGE_DEEP` | `stages[].type` = `DEEP` |
+  | `sleepSummary.stageSummaries[].duration` = `"3060s"` | `summary.stagesSummary[].minutes` = `"51"` |
+  | `sleepMetadata.stagesState` | `metadata.stagesStatus` |
+  | `outOfBedSegments[]` | `shortAwakenings[]` |
+
+  `src/api/google/sleepNight.fixture.ts` is a real captured night and is the authority; the tests
+  assert its actual numbers (23 segments, 468 min asleep, 51 min deep over 5 episodes, 22 short
+  awakenings). **If a field needs adding, capture a real payload first** — a synthetic fixture only
+  proves the parser agrees with itself.
+
+  Four more things that are easy to get wrong:
+
+  - **Render through `startUtcOffset`, never as a bare instant.** The fixture's `20:18Z` is a 22:18
+    bedtime at +02:00. Formatting in the browser's zone agrees only while the viewer sits at the
+    same offset the watch did, and lies silently after any travel. `wallClock`/`clockLabel`/
+    `localDateKey` in `sleep.ts` do this; they return Dates whose **UTC** getters read as local.
   - **Overnight HRV and heart rate are not a join.** `daily-heart-rate-variability` already carries
     `deepSleepRootMeanSquareOfSuccessiveDifferencesMilliseconds` (HRV while asleep) and
     `nonRemHeartRateBeatsPerMinute` (heart rate while asleep), both computed over the night. There
     is no need to intersect raw HRV samples with the sleep interval — don't build it.
-  - **Daily metrics are keyed on the morning a night *ended*.** A session from 23:40 to 07:10 is
-    the *next* day's HRV record. Keying on the start date silently pairs every night with the
-    wrong day's numbers, and nothing about the result looks broken.
-  - **Stage totals come from `sleepSummary.stageSummaries` when present**, segments otherwise. The
-    summary is what the Google Health app shows, and matching the app matters more than matching
-    our own hypnogram. They are different fields, so they *can* disagree; the raw JSON on the card
-    is how you'd settle it.
+  - **Daily metrics are keyed on the morning a night *ended*, in the recording zone.** A session
+    from 22:18 to 06:16 is the *next* day's HRV record. Keying on the start date, or resolving the
+    day in UTC, silently pairs every night with the wrong day's numbers and nothing looks broken.
+  - **Totals come from `summary` when present**, segments otherwise. `minutesAsleep` and
+    `stagesSummary[].minutes` are what the Google Health app shows, and matching the app matters
+    more than matching our own hypnogram. They are different fields from the ones the timeline is
+    drawn from, so they disagree by up to a minute per stage (the summary is whole minutes; the
+    segments carry `:30` boundaries). A test pins that gap at ≤ 1 minute.
 
   **Sleep Score and recovery are not in this API.** No data type exposes them, and no message in
   `google.devicesandservices.health.v4` carries a score field — they are computed in the Google

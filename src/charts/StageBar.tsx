@@ -45,6 +45,9 @@ export default function StageBar({ night }: { night: SleepNight }) {
             <span className="stage-value">{formatDuration(night.totals[stage])}</span>
             <span className="muted stage-share">
               {percentFormat.format(stageShare(night, stage))}%
+              {/* How fragmented the stage was: 51 min of deep across 5 episodes
+                  is a different night from 51 min in one block. */}
+              {night.episodes[stage] > 0 && ` · ${night.episodes[stage]}×`}
             </span>
           </li>
         ))}

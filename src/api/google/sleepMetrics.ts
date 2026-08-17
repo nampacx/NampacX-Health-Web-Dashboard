@@ -14,6 +14,7 @@
  * sleeping numbers are interesting *relative to*.
  */
 
+import { localDateKey } from './sleep'
 import type { HealthRecord } from './types'
 
 export interface NightMetrics {
@@ -171,16 +172,22 @@ export function nightMetricsByDate(records: HealthRecord[]): Map<string, NightMe
  * The metrics belonging to a night, or null.
  *
  * Keyed on the morning the session *ended*, which is how Google files a daily
- * record — a night starting 23:40 on the 16th and ending 07:10 on the 17th is
+ * record — a night starting 22:18 on the 16th and ending 06:16 on the 17th is
  * the 17th's HRV reading, not the 16th's. Falling back to the start date would
  * silently pair every night with the wrong day's numbers.
+ *
+ * The calendar day is resolved in the night's own recording zone, not the
+ * browser's: a 00:40 finish at +02:00 is still the same day there while the
+ * underlying instant has already rolled over in UTC.
  */
 export function metricsForNight(
   byDate: Map<string, NightMetrics>,
-  night: { start: Date | null; end: Date | null },
+  night: { start: Date | null; end: Date | null; utcOffsetSeconds?: number },
 ): NightMetrics | null {
   const anchor = night.end ?? night.start
-  return anchor ? (byDate.get(dateKey(anchor)) ?? null) : null
+  if (!anchor) return null
+  const offset = night.utcOffsetSeconds ?? 0
+  return byDate.get(localDateKey(anchor, offset)) ?? null
 }
 
 /** True when nothing in the record set filled a single slot. */
