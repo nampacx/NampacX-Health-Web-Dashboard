@@ -5,7 +5,6 @@ import Header from './components/Header'
 import SignIn from './components/SignIn'
 import Tabs, { tabButtonId, tabPanelId, type TabItem } from './components/Tabs'
 import TechnicalDetails from './components/TechnicalDetails'
-import TimeRangeSelect from './components/TimeRangeSelect'
 import WithingsConnect from './components/WithingsConnect'
 import WithingsSection from './components/WithingsSection'
 import { useGoogleData } from './state/googleData'
@@ -80,7 +79,6 @@ export default function App() {
           </>
         ) : (
           <>
-            <TimeRangeSelect />
             <Tabs
               items={items}
               active={tab}
