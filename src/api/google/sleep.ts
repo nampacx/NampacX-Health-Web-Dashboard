@@ -39,6 +39,24 @@ export const SLEEP_STAGE_LABELS: Record<SleepStage, string> = {
   deep: 'Deep',
 }
 
+export const SLEEP_STAGE_DESCRIPTIONS: Record<SleepStage, string> = {
+  awake:
+    'Brief awakenings are normal and do not significantly affect recovery. ' +
+    'Frequent or prolonged waking can disrupt restorative sleep and leave you feeling tired.',
+  rem:
+    'REM (Rapid Eye Movement) sleep is when most dreaming occurs. ' +
+    'It supports memory consolidation, emotional processing, and mental recovery. ' +
+    'Adults typically spend 20–25 % of the night in REM.',
+  light:
+    'Light sleep (N1 and N2) is the transition between wakefulness and deeper sleep. ' +
+    'It aids memory consolidation and helps the body relax. ' +
+    'Most adults spend about half the night here.',
+  deep:
+    'Deep sleep (slow-wave sleep, N3) is the most physically restorative stage. ' +
+    'The body repairs tissue, builds bone and muscle, and strengthens the immune system. ' +
+    'More deep sleep generally means better physical recovery.',
+}
+
 export interface StageSegment {
   stage: SleepStage
   start: Date

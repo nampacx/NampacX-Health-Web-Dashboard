@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import {
+  SLEEP_STAGE_DESCRIPTIONS,
   SLEEP_STAGE_LABELS,
   clockLabel,
   formatDuration,
@@ -84,6 +85,7 @@ export default function Hypnogram({ night }: { night: SleepNight }) {
                 textAnchor="end"
                 dominantBaseline="middle"
               >
+                <title>{SLEEP_STAGE_DESCRIPTIONS[lane.stage]}</title>
                 {SLEEP_STAGE_LABELS[lane.stage]}
               </text>
             </g>
