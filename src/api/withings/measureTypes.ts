@@ -29,6 +29,7 @@ export const MEASURE_TYPES: MeasureTypeDef[] = [
   { type: 122, label: 'Visceral fat', unit: '', decimals: 1 },
   { type: 155, label: 'Vascular age', unit: 'yr', decimals: 0 },
   { type: 168, label: 'VO2 max', unit: 'ml/min/kg', decimals: 1 },
+  { type: 226, label: 'Basal metabolic rate (avg)', unit: 'kcal', decimals: 0 },
 ]
 
 export const MEASURE_TYPES_BY_TYPE = new Map(MEASURE_TYPES.map((m) => [m.type, m]))
