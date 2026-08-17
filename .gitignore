@@ -12,3 +12,17 @@ dist-ssr/
 .idea/
 .DS_Store
 *.tsbuildinfo
+
+# Withings token broker (broker/). local.settings.json holds live secrets when
+# populated for local dev -- verify with `git check-ignore -v` before it's
+# ever filled in. node_modules/dist under broker/ are already covered by the
+# blanket rules above; listed here for clarity since it's a separate project.
+broker/local.settings.json
+broker/dist/
+broker/node_modules/
+
+# azd local deployment state (env vars, provisioning cache).
+.azure/
+
+# Claude Code tool config (permission allowlists), local to whoever ran it.
+.claude/

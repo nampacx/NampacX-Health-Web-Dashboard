@@ -1,4 +1,4 @@
-import type { FetchOutcome } from '../types'
+import type { FetchOutcome } from '../api/google/types'
 
 export default function OutcomeSummary({ outcomes }: { outcomes: FetchOutcome[] }) {
   const failed = outcomes.filter((outcome) => outcome.status === 'error')

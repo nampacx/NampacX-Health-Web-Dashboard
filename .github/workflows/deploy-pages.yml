@@ -42,12 +42,19 @@ jobs:
           # An OAuth client ID is public by design (it ships in the bundle either
           # way), so a repository variable is the right home for it — not a secret.
           VITE_GOOGLE_CLIENT_ID: ${{ vars.VITE_GOOGLE_CLIENT_ID }}
-          # Optional. Leave unset to call health.googleapis.com directly.
-          VITE_HEALTH_API_BASE: ${{ vars.VITE_HEALTH_API_BASE }}
+          # Withings is optional and independent of Google -- unlike the Google
+          # var above, missing these must NOT fail the build. Also public by
+          # design; the broker URL just points at the token-exchange Function.
+          VITE_WITHINGS_CLIENT_ID: ${{ vars.VITE_WITHINGS_CLIENT_ID }}
+          VITE_WITHINGS_BROKER_URL: ${{ vars.VITE_WITHINGS_BROKER_URL }}
+          VITE_WITHINGS_REDIRECT_URI: ${{ vars.VITE_WITHINGS_REDIRECT_URI }}
         run: |
           if [ -z "$VITE_GOOGLE_CLIENT_ID" ]; then
             echo "::error::Repository variable VITE_GOOGLE_CLIENT_ID is not set. Add it under Settings > Secrets and variables > Actions > Variables, otherwise the deployed site cannot sign anyone in."
             exit 1
+          fi
+          if [ -z "$VITE_WITHINGS_CLIENT_ID" ] || [ -z "$VITE_WITHINGS_BROKER_URL" ]; then
+            echo "::warning::VITE_WITHINGS_CLIENT_ID or VITE_WITHINGS_BROKER_URL is not set. Withings stays optional -- the site will build and deploy Google-only, showing a 'connect' prompt for Withings instead of failing."
           fi
           npm run build
 

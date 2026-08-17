@@ -1,7 +1,7 @@
-import { useAuth } from '../auth/AuthContext'
+import { useGoogleAuth } from '../auth/google/GoogleAuthContext'
 
 export default function Header() {
-  const { status, profile, signOut } = useAuth()
+  const { status, profile, signOut } = useGoogleAuth()
 
   return (
     <header className="header">
@@ -11,7 +11,7 @@ export default function Header() {
         </span>
         <div>
           <h1>Health Dashboard</h1>
-          <p className="brand-sub">Your latest Google Health data</p>
+          <p className="brand-sub">Activity, sleep, and body composition — together</p>
         </div>
       </div>
 

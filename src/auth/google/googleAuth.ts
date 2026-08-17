@@ -1,4 +1,4 @@
-import type { UserProfile } from '../types'
+import type { UserProfile } from '../../api/google/types'
 
 const STORAGE_KEY = 'ghd.token'
 

@@ -1,4 +1,4 @@
-import type { DataTypeDef, ReadScope } from '../types'
+import type { DataTypeDef, ReadScope } from './types'
 
 const SCOPE_PREFIX = 'https://www.googleapis.com/auth/googlehealth.'
 

@@ -1,4 +1,4 @@
-import type { DataTypeDef, HealthRecord, RawDataPoint } from '../types'
+import type { DataTypeDef, HealthRecord, RawDataPoint } from './types'
 
 /**
  * Data point payloads are not documented field-by-field for every data type, and

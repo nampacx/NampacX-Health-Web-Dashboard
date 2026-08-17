@@ -1,4 +1,4 @@
-import type { HealthRecord } from '../types'
+import type { HealthRecord } from './types'
 
 export interface DayGroup {
   key: string

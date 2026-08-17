@@ -1,0 +1,12 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "environmentName": { "value": "${AZURE_ENV_NAME}" },
+    "location": { "value": "${AZURE_LOCATION}" },
+    "withingsClientId": { "value": "${WITHINGS_CLIENT_ID}" },
+    "withingsClientSecret": { "value": "${WITHINGS_CLIENT_SECRET}" },
+    "allowedOrigins": { "value": "${ALLOWED_ORIGINS=https://mikokono.de,http://localhost:5173,http://127.0.0.1:5173}" },
+    "allowedRedirectUris": { "value": "${ALLOWED_REDIRECT_URIS=https://mikokono.de/Google-Health-Web-Dashboard/}" }
+  }
+}
