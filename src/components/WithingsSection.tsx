@@ -8,6 +8,7 @@ import { toSeries } from '../api/withings/series'
 import { useWithingsAuth } from '../auth/withings/WithingsAuthContext'
 import LineChart from '../charts/LineChart'
 import { useWithingsData } from '../state/withingsData'
+import TimeRangeSelect from './TimeRangeSelect'
 import WithingsGroupCard from './WithingsGroupCard'
 
 /** Title, unit and precision all come from the catalog, so they cannot drift. */
@@ -29,6 +30,7 @@ export default function WithingsSection() {
 
   return (
     <>
+      <TimeRangeSelect />
       <div className="list-header">
         <h2>Body composition</h2>
         <div className="list-header-actions">
