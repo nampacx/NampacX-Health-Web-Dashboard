@@ -3,7 +3,7 @@ name: Deploy Withings token broker
 on:
   push:
     branches: [main]
-    paths: ['api/**', 'infra/**', 'azure.yaml']
+    paths: ['broker/**', 'infra/**', 'azure.yaml']
   workflow_dispatch:
 
 permissions:

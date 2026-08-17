@@ -1,0 +1,15 @@
+*.ts
+!dist/**/*.d.ts
+tsconfig.json
+# Leading slashes are load-bearing: .funcignore uses .gitignore syntax, where a
+# pattern with no slash matches at *any* depth. Bare `src` therefore also
+# excluded `dist/src/`, shipping a package with no functions in it at all.
+/src
+/test
+*.test.js
+.git*
+.vscode
+local.settings.json
+node_modules/typescript
+node_modules/vitest
+node_modules/@vitest

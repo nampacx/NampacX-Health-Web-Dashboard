@@ -48,7 +48,7 @@ the error text differs, and only for the credentials case).
 ### 1. Local development
 
 ```bash
-cd api
+cd broker
 npm install
 cp local.settings.json.example local.settings.json   # if you don't already have one
 ```
@@ -89,26 +89,66 @@ azd up
 ```
 
 Provisions (see [infra/main.bicep](../infra/main.bicep)): a Flex Consumption Function App (Linux,
-Node 22, scales to zero), its storage account, and Application Insights. `azd up` prints the
-deployed `BROKER_URL` output — that's what goes into the SPA's `VITE_WITHINGS_BROKER_URL`.
+Node 22, scales to zero), its storage account, Application Insights, and a Key Vault. `azd up`
+prints the deployed `BROKER_URL` output — that's what goes into the SPA's
+`VITE_WITHINGS_BROKER_URL`.
 
-**The Withings `client_secret` is stored as a plain Function App setting**, not a Key Vault
-reference — app settings are already encrypted at rest and access-controlled via the Function
-App's own RBAC, which is a reasonable default at this scale. If that's not enough for your threat
-model, the upgrade path is a Key Vault resource plus an
-`@Microsoft.KeyVault(SecretUri=...)` reference in `main.bicep`, using the Function's
-already-provisioned system-assigned managed identity for access.
+**The Withings `client_secret` lives in Key Vault**, not in site config. `azd` passes it in as a
+`@secure()` parameter, Bicep writes it to the vault as the `withings-client-secret` secret, and the
+`WITHINGS_CLIENT_SECRET` app setting is an `@Microsoft.KeyVault(SecretUri=…)` reference the platform
+resolves at app start. The Function's code is unchanged — it still reads
+`process.env.WITHINGS_CLIENT_SECRET`.
+
+Two details worth knowing before you touch that part of `main.bicep`:
+
+- The reference resolves through a **user-assigned** managed identity (`id-ghd-withings-*`) holding
+  *Key Vault Secrets User*, not the Function's system-assigned one. The system-assigned identity
+  doesn't exist until the app is created, so it can't be granted vault access in time to resolve a
+  reference *during* creation — that's [the documented reason](https://learn.microsoft.com/azure/app-service/app-service-key-vault-references#access-vaults-with-a-user-assigned-identity)
+  the user-assigned identity exists. The system-assigned identity is still what authenticates the
+  storage connections, since identity-based connections default to it when no `clientId` is set.
+- The reference uses the **unversioned** secret URI, so rotating the value in the vault
+  (`az keyvault secret set`) takes effect on the next platform refresh — no redeploy. Rotating via
+  `azd env set WITHINGS_CLIENT_SECRET … && azd provision` works too.
+
+The vault has soft-delete retention at the 7-day floor, so a name freed by `azd down` can be reused
+without `--purge`.
 
 ### 4. CI (optional)
 
 [.github/workflows/deploy-function.yml](../.github/workflows/deploy-function.yml) redeploys on any
-push touching `api/`, `infra/`, or `azure.yaml`. It authenticates via OIDC federated credentials —
+push touching `broker/`, `infra/`, or `azure.yaml`. It authenticates via OIDC federated credentials —
 no publish profile, no long-lived secret in GitHub. Needs, as repo secrets:
 `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`, `WITHINGS_CLIENT_SECRET`; and as repo
 variables: `AZURE_LOCATION`, `WITHINGS_CLIENT_ID`, `WITHINGS_ALLOWED_ORIGINS`,
-`WITHINGS_ALLOWED_REDIRECT_URIS`. Setting up the federated credential itself (an app registration
-trusting `repo:<owner>/<repo>:ref:refs/heads/main`) is a one-time manual step in the Azure portal —
-see [Microsoft's OIDC guide](https://learn.microsoft.com/azure/developer/github/connect-from-azure-openid-connect).
+`WITHINGS_ALLOWED_REDIRECT_URIS`.
+
+The identity behind `AZURE_CLIENT_ID` is a one-time setup. Run it locally:
+
+```powershell
+./scripts/bootstrap-github-oidc.ps1 -WhatIf   # inspect first
+./scripts/bootstrap-github-oidc.ps1
+```
+
+It creates the app registration and service principal, registers the federated credentials, grants
+*Contributor* and *User Access Administrator* (the second is required because `infra/main.bicep`
+creates role assignments, which Contributor cannot do), and writes the three `AZURE_*` repo secrets.
+Re-running is safe.
+
+Two things about the credential subject are easy to get wrong, and both fail closed with
+`AADSTS700213` rather than anything descriptive — the script handles them, but they are worth
+knowing if you ever wire this up by hand:
+
+- **The job declares `environment: production`, so the subject is
+  `…:environment:production`, not `…:ref:refs/heads/main`.** When a job targets an environment,
+  GitHub puts that in the `sub` claim in place of the ref.
+- **The subject may carry numeric owner/repo IDs.** GitHub is migrating to "immutable" subjects
+  (`repo:owner@8090625/repo@1335896422:…`) and repositories created after 2026-07-15 get them by
+  default. The `use_immutable_subject` REST field does not reliably report this, so the script
+  registers both forms and lets the real token pick.
+
+Background: [Microsoft's OIDC guide](https://learn.microsoft.com/azure/developer/github/connect-from-azure-openid-connect)
+and [GitHub's OIDC reference](https://docs.github.com/en/actions/reference/security/oidc).
 
 ## CORS
 
