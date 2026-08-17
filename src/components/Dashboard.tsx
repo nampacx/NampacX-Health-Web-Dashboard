@@ -6,6 +6,7 @@ import {
   type GoogleTabId,
 } from '../state/tabs'
 import Controls from './Controls'
+import ExerciseSection from './ExerciseSection'
 import OutcomeSummary from './OutcomeSummary'
 import RecordList from './RecordList'
 import SleepSection from './SleepSection'
@@ -20,12 +21,23 @@ const PANEL_PREFIX = 'google'
  * they only apply there.
  */
 export default function Dashboard() {
-  const { controls, setControls, visible, nights, outcomes, loading, error, loadedAt, reload } =
-    useGoogleData()
+  const {
+    controls,
+    setControls,
+    visible,
+    nights,
+    sessions,
+    outcomes,
+    loading,
+    error,
+    loadedAt,
+    reload,
+  } = useGoogleData()
   const [tab, setTab] = useGoogleTabState()
 
   const badges: Record<GoogleTabId, string> = {
     sleep: String(nights.length),
+    exercise: String(sessions.length),
     activity: String(visible.length),
   }
 
@@ -60,6 +72,8 @@ export default function Dashboard() {
       >
         {tab === 'sleep' ? (
           <SleepSection />
+        ) : tab === 'exercise' ? (
+          <ExerciseSection />
         ) : (
           <>
             <div className="list-header">

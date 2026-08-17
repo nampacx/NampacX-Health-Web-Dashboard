@@ -1141,3 +1141,64 @@ code {
   gap: 10px;
   flex-wrap: wrap;
 }
+
+/* ---------- Exercise view ---------- */
+
+.exercise-totals {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 26px;
+  padding: 12px 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.exercise-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 12px;
+}
+
+.exercise-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.exercise-head h3 {
+  margin: 0 0 1px;
+  font-size: 1rem;
+}
+
+.exercise-head .muted {
+  font-size: 0.78rem;
+}
+
+.exercise-duration {
+  font-size: 1.05rem;
+  white-space: nowrap;
+}
+
+.exercise-duration strong {
+  font-variant-numeric: tabular-nums;
+}
+
+.exercise-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 22px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.exercise-empty {
+  margin: 10px 0 0;
+  font-size: 0.82rem;
+  max-width: 62ch;
+}

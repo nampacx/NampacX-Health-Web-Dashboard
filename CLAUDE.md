@@ -146,8 +146,28 @@ Data flows **auth → fetch → normalize → group → render**.
   Health app and on the watch. This has been checked against the full data-type enumeration and
   the RPC reference; the sleep view says so on the page so it doesn't read as a bug.
 
+- **Exercise** (`src/api/google/exercise.ts`). The mirror image of the sleep decision, and the
+  contrast is the point: sleep needs a typed parser because a stage timeline cannot survive
+  `flatten()`; exercise must **not** have one, because its fields differ per activity — a run
+  carries distance and pace, a swim carries lengths, a strength session carries almost nothing.
+  Pinning a schema would mean rendering one activity well and quietly dropping the rest.
+
+  So it consumes `payloadLeaves()` (exported from `normalize.ts`, one flattening and one unit
+  formatter for the whole app) and **ranks** the result. The documented names appear only in
+  `STAT_ORDER`'s patterns, so a wrong or renamed field moves a stat down the card instead of
+  blanking it. Do not turn this into a schema.
+
+  Two smaller rules: `activeDuration` beats `end - start` when present, because it excludes paused
+  time; and `exerciseTotals` sums energy only from paths matching `kcal`, since adding a joules
+  field to a kcal one produces a confident wrong number, which is worse than no total.
+
+  **Sets, reps and resistance are not in this API.** Google *Fit*'s `com.google.activity.exercise`
+  had `repetitions` and `resistance`; they did not survive into the Health API, and Health Connect —
+  which feeds it — has no field for them either. Search results conflating the two are the usual
+  source of confusion. The Exercise view says so on the page.
+
 - **Render** (`src/components/`). `Dashboard.tsx` owns the Google tab: controls, fetch outcomes,
-  and a **sub-tab bar** (Sleep / All activity, `GOOGLE_TAB_IDS` in `state/tabs.ts`). It refetches
+  and a **sub-tab bar** (Sleep / Exercise / All activity, `GOOGLE_TAB_IDS` in `state/tabs.ts`). It refetches
   when data-type selection / lookback / page size change, but applies the text `query`
   **client-side without refetching**. A `requestId` ref guards against a slow earlier request
   overwriting a newer result.

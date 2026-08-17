@@ -246,6 +246,39 @@ function buildSummary(
   return { text: `${humanizePath(chosen.path)}: ${formatLeaf(chosen)}`, leaf: chosen }
 }
 
+export interface PayloadLeaf {
+  /** Dotted path within the payload, e.g. `metricsSummary.caloriesKcal`. */
+  path: string
+  /** Humanized last segment, unit suffix stripped. */
+  label: string
+  /** Formatted for display, with the unit rendered into it. */
+  text: string
+  /** The underlying number when there is one, for aggregation. Else null. */
+  numeric: number | null
+}
+
+/**
+ * Every displayable leaf of a data point's payload, flattened and formatted.
+ *
+ * Exported so a per-type view (the exercise cards) can pick and re-order what
+ * it shows **without** re-implementing the flattening or the unit inference.
+ * Anything reading this gets whatever the payload happens to contain, so a
+ * renamed or unexpected field changes the ordering rather than blanking a card
+ * — which is the whole reason the generic path exists.
+ */
+export function payloadLeaves(point: RawDataPoint, dataType: DataTypeDef): PayloadLeaf[] {
+  const leaves: Leaf[] = []
+  flatten(extractPayload(point, dataType), '', leaves)
+  return leaves
+    .filter((leaf) => !TIME_NOISE.test(leaf.path))
+    .map((leaf) => ({
+      path: leaf.path,
+      label: humanizePath(leaf.path),
+      text: formatLeaf(leaf),
+      numeric: asNumber(leaf.value),
+    }))
+}
+
 export function normalizeDataPoint(
   point: RawDataPoint,
   dataType: DataTypeDef,
