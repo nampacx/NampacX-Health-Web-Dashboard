@@ -5,13 +5,18 @@
  */
 
 import type { SleepStage, StageSegment } from '../api/google/sleep'
-import { SLEEP_STAGES } from '../api/google/sleep'
+import { SLEEP_STAGES, clockLabel } from '../api/google/sleep'
 
 export interface HypnogramInput {
   segments: StageSegment[]
   /** Session bounds. Segments are clamped to these. */
   startMs: number
   endMs: number
+  /**
+   * Offset the night was recorded at. Ticks land on local whole hours and are
+   * labelled in local time — a night at +02:00 must read 23:00, not 21:00.
+   */
+  offsetSeconds: number
   width: number
   padLeft: number
   padRight: number
@@ -41,29 +46,29 @@ const LANE_GAP = 6
 /** Below this a segment is invisible; widen it so a 30-second wake still reads. */
 const MIN_SEGMENT_WIDTH = 2
 
-function pad(value: number): string {
-  return String(value).padStart(2, '0')
-}
-
-/** `23:40` — 24-hour, because a hypnogram crosses midnight and am/pm doubles up. */
-export function clockLabel(date: Date): string {
-  return `${pad(date.getHours())}:${pad(date.getMinutes())}`
-}
+const HOUR_MS = 3_600_000
 
 /**
  * Whole-hour marks inside the session, thinned so they never crowd. A short nap
  * can contain no whole hour at all, in which case the session bounds are
  * labelled instead — an axis with no ticks reads as a broken chart.
+ *
+ * Hours are whole in the *recording* zone, so the maths happens in offset-
+ * shifted space and the results are shifted back to real instants.
  */
-export function hourTicks(startMs: number, endMs: number, maxTicks = 7): number[] {
+export function hourTicks(
+  startMs: number,
+  endMs: number,
+  offsetSeconds: number,
+  maxTicks = 7,
+): number[] {
   if (!(endMs > startMs)) return []
 
-  const first = new Date(startMs)
-  first.setMinutes(0, 0, 0)
-  if (first.getTime() < startMs) first.setHours(first.getHours() + 1)
+  const shift = offsetSeconds * 1000
+  const first = Math.ceil((startMs + shift) / HOUR_MS) * HOUR_MS
 
   const hours: number[] = []
-  for (let at = first.getTime(); at <= endMs; at += 3_600_000) hours.push(at)
+  for (let at = first; at <= endMs + shift; at += HOUR_MS) hours.push(at - shift)
 
   if (hours.length === 0) return [startMs, endMs]
   if (hours.length <= maxTicks) return hours
@@ -77,6 +82,7 @@ export function hypnogramLayout({
   segments,
   startMs,
   endMs,
+  offsetSeconds,
   width,
   padLeft,
   padRight,
@@ -118,10 +124,10 @@ export function hypnogramLayout({
     })
   }
 
-  const ticks = hourTicks(startMs, endMs).map((at) => ({
+  const ticks = hourTicks(startMs, endMs, offsetSeconds).map((at) => ({
     at,
     x: xFor(at),
-    label: clockLabel(new Date(at)),
+    label: clockLabel(new Date(at), offsetSeconds),
   }))
 
   return {

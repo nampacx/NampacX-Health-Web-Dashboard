@@ -1,11 +1,12 @@
 import { useMemo, useState } from 'react'
 import {
   SLEEP_STAGE_LABELS,
+  clockLabel,
   formatDuration,
   type SleepNight,
   type StageSegment,
 } from '../api/google/sleep'
-import { clockLabel, hypnogramLayout } from './hypnogramScale'
+import { hypnogramLayout } from './hypnogramScale'
 import { useElementWidth } from './useElementWidth'
 
 const LANE_HEIGHT = 30
@@ -14,12 +15,10 @@ const PAD_LEFT = 52
 const PAD_RIGHT = 12
 const AXIS_HEIGHT = 22
 
-const timeFormat = new Intl.DateTimeFormat(undefined, { timeStyle: 'short' })
-
 /**
  * The night as a stage timeline: one lane per stage, each segment a bar placed
  * at its real clock position. This is the view the generic normalizer could
- * never produce — it collapses `sleepStages` to "34 entries".
+ * never produce — it collapses `stages` to "23 entries".
  */
 export default function Hypnogram({ night }: { night: SleepNight }) {
   const [wrapRef, width] = useElementWidth()
@@ -27,6 +26,7 @@ export default function Hypnogram({ night }: { night: SleepNight }) {
 
   const startMs = night.start?.getTime() ?? 0
   const endMs = night.end?.getTime() ?? 0
+  const offset = night.utcOffsetSeconds
 
   const layout = useMemo(() => {
     if (width === 0 || !night.start || !night.end) return null
@@ -34,19 +34,21 @@ export default function Hypnogram({ night }: { night: SleepNight }) {
       segments: night.segments,
       startMs,
       endMs,
+      offsetSeconds: offset,
       width,
       padLeft: PAD_LEFT,
       padRight: PAD_RIGHT,
       padTop: PAD_TOP,
       laneHeight: LANE_HEIGHT,
     })
-  }, [night.segments, night.start, night.end, startMs, endMs, width])
+  }, [night.segments, night.start, night.end, startMs, endMs, offset, width])
 
   if (!night.stagesAvailable) {
     return (
       <p className="muted hypnogram-empty">
-        No stage data for this night — the device recorded a duration only. Stage detection needs a
-        watch or band that supports it.
+        No stage timeline for this night
+        {night.trackingType ? ` — tracked as ${night.trackingType.toLowerCase()}` : ''}. Stage
+        detection needs a watch or band that supports it.
       </p>
     )
   }
@@ -62,7 +64,7 @@ export default function Hypnogram({ night }: { night: SleepNight }) {
           viewBox={`0 0 ${width} ${height}`}
           className="hypnogram-svg"
           role="img"
-          aria-label={`Sleep stages from ${clockLabel(new Date(startMs))} to ${clockLabel(new Date(endMs))}: ${night.segments.length} segments. The stage totals below give the same data as text.`}
+          aria-label={`Sleep stages from ${clockLabel(new Date(startMs), offset)} to ${clockLabel(new Date(endMs), offset)}: ${night.segments.length} segments. The stage totals below give the same data as text.`}
           onPointerLeave={() => setActive(null)}
         >
           {layout.lanes.map((lane) => (
@@ -125,20 +127,22 @@ export default function Hypnogram({ night }: { night: SleepNight }) {
         </svg>
       )}
 
-      {active && (
-        <p className="hypnogram-readout" role="status">
-          <span
-            className="stage-key"
-            style={{ ['--stage' as string]: `var(--stage-${active.stage})` }}
-            aria-hidden="true"
-          />
-          <strong>{SLEEP_STAGE_LABELS[active.stage]}</strong>
-          <span className="muted">
-            {timeFormat.format(active.start)} – {timeFormat.format(active.end)} ·{' '}
-            {formatDuration(active.durationMs)}
-          </span>
-        </p>
-      )}
+      <p className="hypnogram-readout" role="status">
+        {active && (
+          <>
+            <span
+              className="stage-key"
+              style={{ ['--stage' as string]: `var(--stage-${active.stage})` }}
+              aria-hidden="true"
+            />
+            <strong>{SLEEP_STAGE_LABELS[active.stage]}</strong>
+            <span className="muted">
+              {clockLabel(active.start, offset)} – {clockLabel(active.end, offset)} ·{' '}
+              {formatDuration(active.durationMs)}
+            </span>
+          </>
+        )}
+      </p>
     </div>
   )
 }

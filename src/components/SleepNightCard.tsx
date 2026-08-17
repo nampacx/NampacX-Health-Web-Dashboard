@@ -1,10 +1,16 @@
-import { formatDuration, type SleepNight } from '../api/google/sleep'
+import { clockLabel, formatDuration, wallClock, type SleepNight } from '../api/google/sleep'
 import { hasAnyMetric, type NightMetrics } from '../api/google/sleepMetrics'
 import Hypnogram from '../charts/Hypnogram'
 import StageBar from '../charts/StageBar'
 
-const nightFormat = new Intl.DateTimeFormat(undefined, { weekday: 'short', day: 'numeric', month: 'short' })
-const timeFormat = new Intl.DateTimeFormat(undefined, { timeStyle: 'short' })
+// timeZone: 'UTC' is not a bug: the date handed in is already shifted into the
+// recording zone, so its UTC face *is* the local calendar day.
+const nightFormat = new Intl.DateTimeFormat(undefined, {
+  weekday: 'short',
+  day: 'numeric',
+  month: 'short',
+  timeZone: 'UTC',
+})
 const oneDecimal = new Intl.NumberFormat(undefined, { maximumFractionDigits: 1 })
 const whole = new Intl.NumberFormat(undefined, { maximumFractionDigits: 0 })
 
@@ -24,11 +30,16 @@ function Stat({ label, value, hint }: { label: string; value: string; hint?: str
 }
 
 export default function SleepNightCard({ night, metrics }: Props) {
-  const heading = night.start ? nightFormat.format(night.start) : 'Sleep session'
+  const offset = night.utcOffsetSeconds
+  const heading = night.start
+    ? nightFormat.format(wallClock(night.start, offset))
+    : 'Sleep session'
   const window =
     night.start && night.end
-      ? `${timeFormat.format(night.start)} – ${timeFormat.format(night.end)}`
+      ? `${clockLabel(night.start, offset)} – ${clockLabel(night.end, offset)}`
       : null
+
+  const awakeEpisodes = night.episodes.awake
 
   return (
     <li className="card sleep-night">
@@ -36,6 +47,7 @@ export default function SleepNightCard({ night, metrics }: Props) {
         <div>
           <h3>{heading}</h3>
           {window && <span className="muted">{window}</span>}
+          {!night.isMainSleep && <span className="pill">Nap</span>}
         </div>
         <div className="sleep-night-headline">
           <strong>{formatDuration(night.timeAsleepMs)}</strong>
@@ -54,12 +66,21 @@ export default function SleepNightCard({ night, metrics }: Props) {
           hint="asleep ÷ in bed"
         />
         <Stat
-          label="Full awakenings"
-          value={String(night.fullAwakenings)}
-          hint="derived: awake > 5 min"
+          label="Awake"
+          value={formatDuration(night.awakeMs)}
+          hint={awakeEpisodes > 0 ? `${awakeEpisodes} episodes` : undefined}
         />
-        {night.outOfBedMs > 0 && (
-          <Stat label="Out of bed" value={formatDuration(night.outOfBedMs)} />
+        {night.fallAsleepMs !== null && (
+          <Stat label="To fall asleep" value={formatDuration(night.fallAsleepMs)} />
+        )}
+        {/* Brief arousals, counted separately by the device from the stage
+            timeline. The nearest thing the payload has to "restlessness". */}
+        {night.shortAwakenings > 0 && (
+          <Stat
+            label="Short awakenings"
+            value={String(night.shortAwakenings)}
+            hint="brief arousals"
+          />
         )}
       </div>
 
@@ -75,10 +96,7 @@ export default function SleepNightCard({ night, metrics }: Props) {
             />
           )}
           {metrics.averageHrvMs !== null && (
-            <Stat
-              label="HRV daily avg"
-              value={`${oneDecimal.format(metrics.averageHrvMs)} ms`}
-            />
+            <Stat label="HRV daily avg" value={`${oneDecimal.format(metrics.averageHrvMs)} ms`} />
           )}
           {metrics.nonRemHeartRateBpm !== null && (
             <Stat
