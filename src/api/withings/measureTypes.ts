@@ -71,6 +71,36 @@ export const BODY_COMPOSITION_TYPES = new Set([
   122, // visceral fat
 ])
 
+/**
+ * The measures a weigh-in card shows, in this order. A *third* explicit list,
+ * kept apart from the two above for the same reason they are kept apart from
+ * each other: MEASURE_TYPES labels everything, BODY_COMPOSITION_TYPES decides
+ * which groups are weigh-ins at all, and this decides what a card puts on
+ * screen. Deriving any one from another couples decisions that move for
+ * unrelated reasons — adding a label would silently add a card row.
+ *
+ * Anything left out is still in the group and still readable under Raw JSON;
+ * this narrows the card, it does not drop data.
+ */
+export const CARD_MEASURE_TYPES = new Set([
+  1, // weight
+  5, // fat-free mass
+  6, // fat ratio
+  8, // fat mass
+  76, // muscle mass
+  77, // hydration
+  88, // bone mass
+  226, // basal metabolic rate (avg)
+])
+
+/**
+ * A group's card measures, already in MEASURE_TYPE_ORDER — normalize.ts sorts
+ * on the way in, and filtering preserves that.
+ */
+export function cardMeasures(measures: Measure[]): Measure[] {
+  return measures.filter((measure) => CARD_MEASURE_TYPES.has(measure.type))
+}
+
 export function measureLabel(type: number): string {
   return MEASURE_TYPES_BY_TYPE.get(type)?.label ?? `Type ${type}`
 }
