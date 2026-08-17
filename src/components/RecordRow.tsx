@@ -44,10 +44,8 @@ export default function RecordRow({ record }: { record: HealthRecord }) {
           </ul>
         )}
 
-        <details className="raw">
-          <summary>Raw JSON</summary>
-          <pre>{JSON.stringify(record.raw, null, 2)}</pre>
-        </details>
+        {/* Raw JSON lives on the technical-details tab now, so this stays a
+            reading view. */}
       </div>
 
       <div className="record-meta">

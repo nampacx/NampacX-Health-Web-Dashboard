@@ -16,6 +16,14 @@ describe('measureLabel', () => {
   it('labels an unknown type as "Type N"', () => {
     expect(measureLabel(9999)).toBe('Type 9999')
   })
+
+  // Showed up in live data as the bare "Type 226" fallback before being added.
+  it('labels basal metabolic rate', () => {
+    expect(measureLabel(226)).toBe('Basal metabolic rate (avg)')
+    expect(formatMeasureValue({ type: 226, label: 'x', unit: 'kcal', value: 1748.6 })).toBe(
+      `${fmt.format(1749)} kcal`,
+    )
+  })
 })
 
 describe('measureSortKey', () => {

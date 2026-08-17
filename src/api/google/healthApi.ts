@@ -4,7 +4,7 @@ import { normalizeDataPoint } from './normalize'
 // health.googleapis.com returns Access-Control-Allow-Origin for arbitrary
 // origins and permits the `authorization` header, so the browser can call it
 // directly — no proxy required, in development or on a static host.
-const API_BASE = 'https://health.googleapis.com/v4'
+export const API_BASE = 'https://health.googleapis.com/v4'
 
 export class HealthApiError extends Error {
   constructor(

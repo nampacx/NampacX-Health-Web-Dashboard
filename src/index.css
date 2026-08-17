@@ -541,20 +541,160 @@ code {
   font-weight: 500;
 }
 
-.signin-compact {
-  flex-direction: row;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 12px;
-}
-
-.signin-compact p {
-  margin: 0;
-}
-
 .field-hint {
   margin: -6px 0 0;
   font-size: 0.76rem;
   max-width: 60ch;
+}
+
+/* Tabs */
+.tabs {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid var(--border);
+  /* Narrow screens scroll the bar rather than wrapping it into two rows,
+     which would push the panel around as tabs gain and lose badges. */
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.tab {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  border: none;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 600;
+  padding: 9px 14px;
+  margin-bottom: -1px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.tab:hover {
+  color: var(--text);
+}
+
+.tab:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+  border-radius: 6px 6px 0 0;
+}
+
+.tab-active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+.tab-badge {
+  background: var(--accent-soft);
+  color: var(--accent);
+  border-radius: 999px;
+  padding: 1px 7px;
+  font-size: 0.7rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.tab:not(.tab-active) .tab-badge {
+  background: var(--bg);
+  color: var(--muted);
+  border: 1px solid var(--border);
+}
+
+.tab-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.tab-panel:focus {
+  outline: none;
+}
+
+/* Technical details */
+.tech {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.tech-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.tech-card h2 {
+  margin: 0 0 4px;
+  font-size: 1rem;
+}
+
+.tech-card h3 {
+  margin: 12px 0 2px;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+
+.tech-row {
+  display: flex;
+  gap: 12px;
+  align-items: baseline;
+  justify-content: space-between;
+  font-size: 0.82rem;
+  padding: 3px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.tech-row:last-child {
+  border-bottom: none;
+}
+
+.tech-key {
+  color: var(--muted);
+  flex-shrink: 0;
+}
+
+.tech-value {
+  text-align: right;
+  /* Client IDs, scopes and broker URLs are long and unbreakable. */
+  word-break: break-all;
+  font-variant-numeric: tabular-nums;
+}
+
+.tech-list {
+  margin: 8px 0 0;
+  padding-left: 18px;
+  font-size: 0.76rem;
+  color: var(--muted);
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  word-break: break-all;
+}
+
+.tech-outcomes {
+  display: flex;
+  flex-direction: column;
+}
+
+.pill-error {
+  background: var(--error-bg);
+  color: var(--text);
+  border: 1px solid var(--error-border);
+}
+
+.tech-combined {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
