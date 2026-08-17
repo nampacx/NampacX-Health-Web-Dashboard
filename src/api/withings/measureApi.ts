@@ -11,7 +11,7 @@
 
 import type { GetMeasBody, RawMeasureGroup, WithingsEnvelope } from './types'
 
-const MEASURE_ENDPOINT = 'https://wbsapi.withings.net/measure'
+export const MEASURE_ENDPOINT = 'https://wbsapi.withings.net/measure'
 
 /** Withings never documents a stable status-code table; message it plainly. */
 const STATUS_MESSAGES: Record<number, string> = {

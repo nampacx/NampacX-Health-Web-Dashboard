@@ -6,17 +6,12 @@ import {
   FOCUS_IDS,
 } from '../api/google/dataTypes'
 import type { DataTypeDef } from '../api/google/types'
-
-export interface ControlsState {
-  selectedIds: string[]
-  pageSize: number
-  query: string
-  showAll: boolean
-}
+// The shape lives with the state that owns it, in state/googleData.tsx.
+import type { GoogleControlsState } from '../state/googleData'
 
 interface Props {
-  state: ControlsState
-  onChange: (next: ControlsState) => void
+  state: GoogleControlsState
+  onChange: (next: GoogleControlsState) => void
   onRefresh: () => void
   loading: boolean
 }

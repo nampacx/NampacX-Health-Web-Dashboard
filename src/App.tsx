@@ -3,21 +3,59 @@ import { useWithingsAuth } from './auth/withings/WithingsAuthContext'
 import Dashboard from './components/Dashboard'
 import Header from './components/Header'
 import SignIn from './components/SignIn'
+import Tabs, { tabPanelId } from './components/Tabs'
+import TechnicalDetails from './components/TechnicalDetails'
 import TimeRangeSelect from './components/TimeRangeSelect'
 import WithingsConnect from './components/WithingsConnect'
 import WithingsSection from './components/WithingsSection'
-import { useTimeRange } from './state/timeRange'
+import { useGoogleData } from './state/googleData'
+import { useTabState, type TabId } from './state/tabs'
+import { useWithingsData } from './state/withingsData'
 
 export default function App() {
   const google = useGoogleAuth()
   const withings = useWithingsAuth()
-  const { lookbackDays } = useTimeRange()
+  const { visible, outcomes } = useGoogleData()
+  const { groups } = useWithingsData()
+  const [tab, setTab] = useTabState()
 
-  // The two providers are independent: either one alone is enough to render
-  // the app, so each renders its own section or its own connect card rather
-  // than the app gating on both at once.
-  const anyConnected = google.status === 'signed-in' || withings.status === 'connected'
+  const signedIn = google.status === 'signed-in'
+  const connected = withings.status === 'connected'
+  const anyConnected = signedIn || connected
   const bothStillLoading = google.status === 'loading' && withings.status === 'loading'
+
+  const failedCount = outcomes.filter((outcome) => outcome.status === 'error').length
+  const badges: Partial<Record<TabId, string>> = {
+    google: signedIn ? String(visible.length) : undefined,
+    withings: connected ? String(groups.length) : undefined,
+    technical: failedCount > 0 ? `${failedCount} !` : undefined,
+  }
+
+  // Each tab renders its provider's data, or that provider's connect prompt —
+  // so the tab bar stays stable and you can connect the second provider from
+  // its own tab rather than hunting for a card underneath the first one.
+  function panel() {
+    switch (tab) {
+      case 'google':
+        return google.status === 'loading' ? (
+          <p className="muted">Restoring Google session…</p>
+        ) : signedIn ? (
+          <Dashboard />
+        ) : (
+          <SignIn />
+        )
+      case 'withings':
+        return withings.status === 'loading' ? (
+          <p className="muted">Restoring Withings session…</p>
+        ) : connected ? (
+          <WithingsSection />
+        ) : (
+          <WithingsConnect />
+        )
+      case 'technical':
+        return <TechnicalDetails />
+    }
+  }
 
   return (
     <div className="app">
@@ -25,25 +63,26 @@ export default function App() {
       <main className="main">
         {bothStillLoading ? (
           <p className="muted">Restoring session…</p>
+        ) : !anyConnected ? (
+          // Nothing to navigate between yet, so tabs would be noise. Show both
+          // ways in, exactly as before.
+          <>
+            <SignIn />
+            <WithingsConnect />
+          </>
         ) : (
           <>
-            {anyConnected && <TimeRangeSelect />}
-
-            {google.status === 'loading' ? (
-              <p className="muted">Restoring Google session…</p>
-            ) : google.status === 'signed-in' ? (
-              <Dashboard />
-            ) : (
-              <SignIn compact={anyConnected} />
-            )}
-
-            {withings.status === 'loading' ? (
-              <p className="muted">Restoring Withings session…</p>
-            ) : withings.status === 'connected' ? (
-              <WithingsSection lookbackDays={lookbackDays} />
-            ) : (
-              <WithingsConnect compact={anyConnected} />
-            )}
+            <TimeRangeSelect />
+            <Tabs active={tab} onChange={setTab} badges={badges} />
+            <div
+              className="tab-panel"
+              id={tabPanelId(tab)}
+              role="tabpanel"
+              aria-labelledby={`tab-${tab}`}
+              tabIndex={-1}
+            >
+              {panel()}
+            </div>
           </>
         )}
       </main>

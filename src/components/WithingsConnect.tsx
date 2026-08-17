@@ -1,13 +1,7 @@
 import { useState } from 'react'
 import { useWithingsAuth } from '../auth/withings/WithingsAuthContext'
 
-interface Props {
-  /** True once at least one provider is already connected — swaps the full
-   * explanatory card for a one-line "also connect" row. */
-  compact?: boolean
-}
-
-export default function WithingsConnect({ compact = false }: Props) {
+export default function WithingsConnect() {
   const { connect, error, clientId, brokerUrl } = useWithingsAuth()
   const [persistent, setPersistent] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -16,18 +10,6 @@ export default function WithingsConnect({ compact = false }: Props) {
   function handleConnect() {
     setBusy(true) // the page is about to navigate away; nothing resets this
     connect(persistent)
-  }
-
-  if (compact) {
-    return (
-      <section className="card signin signin-compact">
-        <p className="muted">Also want your Withings body composition here?</p>
-        <button type="button" className="btn" onClick={handleConnect} disabled={busy || !configured}>
-          {busy ? 'Opening Withings…' : 'Connect Withings'}
-        </button>
-        {error && <p className="banner banner-error">{error}</p>}
-      </section>
-    )
   }
 
   return (
