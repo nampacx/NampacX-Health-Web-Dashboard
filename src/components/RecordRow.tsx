@@ -1,4 +1,4 @@
-import type { HealthRecord } from '../types'
+import type { HealthRecord } from '../api/google/types'
 
 const dateTimeFormat = new Intl.DateTimeFormat(undefined, {
   dateStyle: 'medium',

@@ -7,8 +7,8 @@
  * suffixes — reusing it would mean widening a Google-shaped API for nothing.
  */
 
-import { BODY_COMPOSITION_TYPES, MEASURE_TYPES_BY_ID, labelFor, sortKeyFor } from './withingsMeasureTypes'
-import type { Measure, MeasureGroup, MeasureProvenance, RawMeasureGroup } from './withingsTypes'
+import { BODY_COMPOSITION_TYPES, MEASURE_TYPES_BY_TYPE, measureLabel, measureSortKey } from './measureTypes'
+import type { Measure, MeasureGroup, MeasureProvenance, RawMeasureGroup } from './types'
 
 /**
  * `value * 10 ** unit` is the formula Withings documents, but `10 ** -unit`
@@ -36,10 +36,10 @@ export function provenanceFor(attrib: number): MeasureProvenance {
 }
 
 function normalizeMeasure(raw: { value: number; type: number; unit: number }): Measure {
-  const def = MEASURE_TYPES_BY_ID.get(raw.type)
+  const def = MEASURE_TYPES_BY_TYPE.get(raw.type)
   return {
     type: raw.type,
-    label: labelFor(raw.type),
+    label: measureLabel(raw.type),
     unit: def?.unit ?? '',
     value: scaleValue(raw.value, raw.unit),
   }
@@ -53,7 +53,7 @@ export function isBodyCompositionGroup(group: RawMeasureGroup): boolean {
 export function normalizeMeasureGroup(raw: RawMeasureGroup): MeasureGroup {
   const measures = raw.measures
     .map(normalizeMeasure)
-    .sort((a, b) => sortKeyFor(a.type) - sortKeyFor(b.type))
+    .sort((a, b) => measureSortKey(a.type) - measureSortKey(b.type))
 
   return {
     key: String(raw.grpid),
@@ -75,14 +75,14 @@ export function normalizeMeasureGroup(raw: RawMeasureGroup): MeasureGroup {
  * caller asked for.
  */
 export function normalizeGetMeasResponse(groups: RawMeasureGroup[]): MeasureGroup[] {
-  const byId = new Map<string, MeasureGroup>()
+  const byGroupKey = new Map<string, MeasureGroup>()
 
   for (const raw of groups) {
     if (raw.category !== 1) continue
     if (!isBodyCompositionGroup(raw)) continue
     const normalized = normalizeMeasureGroup(raw)
-    byId.set(normalized.key, normalized)
+    byGroupKey.set(normalized.key, normalized)
   }
 
-  return Array.from(byId.values()).sort((a, b) => b.date.getTime() - a.date.getTime())
+  return Array.from(byGroupKey.values()).sort((a, b) => b.date.getTime() - a.date.getTime())
 }

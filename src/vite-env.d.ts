@@ -2,7 +2,6 @@
 
 interface ImportMetaEnv {
   readonly VITE_GOOGLE_CLIENT_ID?: string
-  readonly VITE_HEALTH_API_BASE?: string
   /** Public by design, like the Google client ID. */
   readonly VITE_WITHINGS_CLIENT_ID?: string
   /** Base URL of the Azure Function token broker, e.g. https://<app>.azurewebsites.net/api */

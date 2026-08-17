@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { MemoryStorage } from '../test/memoryStorage'
+import { MemoryStorage } from '../../test/memoryStorage'
 import {
   WithingsNotConnectedError,
   applyTokenResponse,

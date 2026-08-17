@@ -1,5 +1,5 @@
-import { groupByDay } from '../api/grouping'
-import type { HealthRecord } from '../types'
+import { groupByDay } from '../api/google/grouping'
+import type { HealthRecord } from '../api/google/types'
 import RecordRow from './RecordRow'
 
 interface Props {

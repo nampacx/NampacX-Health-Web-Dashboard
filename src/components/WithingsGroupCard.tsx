@@ -1,5 +1,5 @@
-import type { Measure, MeasureGroup } from '../api/withingsTypes'
-import { formatDelta, formatMeasureValue } from '../api/withingsMeasureTypes'
+import type { Measure, MeasureGroup } from '../api/withings/types'
+import { formatDelta, formatMeasureValue } from '../api/withings/measureTypes'
 
 const dateTimeFormat = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' })
 const relativeFormat = new Intl.RelativeTimeFormat(undefined, { numeric: 'auto' })

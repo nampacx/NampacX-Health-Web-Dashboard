@@ -1,7 +1,7 @@
-import { useAuth } from '../auth/AuthContext'
+import { useGoogleAuth } from '../auth/google/GoogleAuthContext'
 
 export default function Header() {
-  const { status, profile, signOut } = useAuth()
+  const { status, profile, signOut } = useGoogleAuth()
 
   return (
     <header className="header">

@@ -4,8 +4,8 @@ import {
   DATA_TYPES,
   DEFAULT_SELECTED_IDS,
   FOCUS_IDS,
-} from '../api/dataTypes'
-import type { DataTypeDef } from '../types'
+} from '../api/google/dataTypes'
+import type { DataTypeDef } from '../api/google/types'
 
 export interface ControlsState {
   selectedIds: string[]

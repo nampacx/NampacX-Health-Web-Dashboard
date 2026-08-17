@@ -9,7 +9,7 @@
  * here; every path below checks `body.status !== 0` first.
  */
 
-import type { GetMeasBody, RawMeasureGroup, WithingsEnvelope } from './withingsTypes'
+import type { GetMeasBody, RawMeasureGroup, WithingsEnvelope } from './types'
 
 const MEASURE_ENDPOINT = 'https://wbsapi.withings.net/measure'
 
@@ -98,7 +98,7 @@ export interface GetMeasureGroupsOptions {
 /**
  * Fetches every measure group in the window, following `more`/`offset`.
  * Real-measurement filtering (`category`), body-composition membership, and
- * dedup/sort all happen downstream in withingsNormalize.ts — this function's
+ * dedup/sort all happen downstream in normalize.ts — this function's
  * job is purely "get all the raw groups Withings has for this window".
  */
 export async function getMeasureGroups({

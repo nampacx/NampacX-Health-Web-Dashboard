@@ -12,7 +12,7 @@ import {
   callbackOutcome,
   isInvalidGrant,
   pendingExchange,
-  refreshToken,
+  exchangeRefreshToken,
   resolveRedirectUri,
   warmBroker,
   WithingsBrokerError,
@@ -46,7 +46,7 @@ interface WithingsAuthState {
 
 const WithingsAuthContext = createContext<WithingsAuthState | null>(null)
 
-export function WithingsProvider({ children }: { children: ReactNode }) {
+export function WithingsAuthProvider({ children }: { children: ReactNode }) {
   const clientId = import.meta.env.VITE_WITHINGS_CLIENT_ID?.trim() || null
   const brokerUrl = import.meta.env.VITE_WITHINGS_BROKER_URL?.trim().replace(/\/$/, '') || null
 
@@ -137,7 +137,7 @@ export function WithingsProvider({ children }: { children: ReactNode }) {
     const record = loadRefreshRecord()
     try {
       return await ensureAccessToken({
-        refresh: (refreshTokenValue) => refreshToken(brokerUrl, refreshTokenValue),
+        refresh: (refreshTokenValue) => exchangeRefreshToken(brokerUrl, refreshTokenValue),
         isInvalidGrant,
         persistent: record?.persistent ?? false,
       })
@@ -159,9 +159,9 @@ export function WithingsProvider({ children }: { children: ReactNode }) {
   return <WithingsAuthContext.Provider value={value}>{children}</WithingsAuthContext.Provider>
 }
 
-export function useWithings(): WithingsAuthState {
+export function useWithingsAuth(): WithingsAuthState {
   const ctx = useContext(WithingsAuthContext)
-  if (!ctx) throw new Error('useWithings must be used inside <WithingsProvider>')
+  if (!ctx) throw new Error('useWithingsAuth must be used inside <WithingsAuthProvider>')
   return ctx
 }
 

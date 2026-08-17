@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { getMeasureGroups } from '../api/withingsApi'
-import { normalizeGetMeasResponse } from '../api/withingsNormalize'
-import type { MeasureGroup } from '../api/withingsTypes'
-import { useWithings } from '../auth/WithingsAuthContext'
+import { getMeasureGroups } from '../api/withings/measureApi'
+import { normalizeGetMeasResponse } from '../api/withings/normalize'
+import type { MeasureGroup } from '../api/withings/types'
+import { useWithingsAuth } from '../auth/withings/WithingsAuthContext'
 import WithingsGroupCard from './WithingsGroupCard'
 
 interface Props {
@@ -10,7 +10,7 @@ interface Props {
 }
 
 export default function WithingsSection({ lookbackDays }: Props) {
-  const { getAccessToken, disconnect } = useWithings()
+  const { getAccessToken, disconnect } = useWithingsAuth()
   const [groups, setGroups] = useState<MeasureGroup[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)

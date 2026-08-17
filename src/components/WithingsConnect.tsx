@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useWithings } from '../auth/WithingsAuthContext'
+import { useWithingsAuth } from '../auth/withings/WithingsAuthContext'
 
 interface Props {
   /** True once at least one provider is already connected — swaps the full
@@ -8,7 +8,7 @@ interface Props {
 }
 
 export default function WithingsConnect({ compact = false }: Props) {
-  const { connect, error, clientId, brokerUrl } = useWithings()
+  const { connect, error, clientId, brokerUrl } = useWithingsAuth()
   const [persistent, setPersistent] = useState(false)
   const [busy, setBusy] = useState(false)
   const configured = Boolean(clientId && brokerUrl)

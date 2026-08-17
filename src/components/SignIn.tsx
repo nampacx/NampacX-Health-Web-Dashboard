@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useAuth } from '../auth/AuthContext'
+import { useGoogleAuth } from '../auth/google/GoogleAuthContext'
 
 interface Props {
   /** True once at least one provider is already connected — swaps the full
@@ -8,7 +8,7 @@ interface Props {
 }
 
 export default function SignIn({ compact = false }: Props) {
-  const { signIn, error, clientId } = useAuth()
+  const { signIn, error, clientId } = useGoogleAuth()
   const [busy, setBusy] = useState(false)
 
   async function handleClick() {

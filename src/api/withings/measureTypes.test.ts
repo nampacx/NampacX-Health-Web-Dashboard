@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formatDelta, formatMeasureValue, labelFor, sortKeyFor } from './withingsMeasureTypes'
+import { formatDelta, formatMeasureValue, measureLabel, measureSortKey } from './measureTypes'
 
 // The number formatting here follows Intl.NumberFormat(undefined, ...), same
 // as src/api/normalize.ts -- its separators depend on the runtime locale (this
@@ -8,25 +8,25 @@ import { formatDelta, formatMeasureValue, labelFor, sortKeyFor } from './withing
 // tests stay portable across CI locales.
 const fmt = new Intl.NumberFormat(undefined, { maximumFractionDigits: 2 })
 
-describe('labelFor', () => {
+describe('measureLabel', () => {
   it('labels a known type', () => {
-    expect(labelFor(1)).toBe('Weight')
+    expect(measureLabel(1)).toBe('Weight')
   })
 
   it('labels an unknown type as "Type N"', () => {
-    expect(labelFor(9999)).toBe('Type 9999')
+    expect(measureLabel(9999)).toBe('Type 9999')
   })
 })
 
-describe('sortKeyFor', () => {
-  it('orders known types by DISPLAY_ORDER', () => {
-    expect(sortKeyFor(1)).toBeLessThan(sortKeyFor(6)) // weight before fat ratio
-    expect(sortKeyFor(6)).toBeLessThan(sortKeyFor(88)) // fat ratio before bone mass
+describe('measureSortKey', () => {
+  it('orders known types by MEASURE_TYPE_ORDER', () => {
+    expect(measureSortKey(1)).toBeLessThan(measureSortKey(6)) // weight before fat ratio
+    expect(measureSortKey(6)).toBeLessThan(measureSortKey(88)) // fat ratio before bone mass
   })
 
   it('sorts unknown types after every known one', () => {
-    const maxKnown = Math.max(sortKeyFor(1), sortKeyFor(168))
-    expect(sortKeyFor(9999)).toBeGreaterThan(maxKnown)
+    const maxKnown = Math.max(measureSortKey(1), measureSortKey(168))
+    expect(measureSortKey(9999)).toBeGreaterThan(maxKnown)
   })
 })
 

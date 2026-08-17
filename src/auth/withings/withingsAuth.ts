@@ -144,8 +144,11 @@ export function exchangeCode(
   return postBroker(brokerUrl, '/withings/token/exchange', { code, redirect_uri: redirectUri })
 }
 
-export function refreshToken(brokerUrl: string, refreshTokenValue: string): Promise<BrokerTokenResponse> {
-  return postBroker(brokerUrl, '/withings/token/refresh', { refresh_token: refreshTokenValue })
+export function exchangeRefreshToken(
+  brokerUrl: string,
+  refreshToken: string,
+): Promise<BrokerTokenResponse> {
+  return postBroker(brokerUrl, '/withings/token/refresh', { refresh_token: refreshToken })
 }
 
 // ---------------------------------------------------------------------------

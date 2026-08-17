@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { WithingsApiError, getMeasureGroups } from './withingsApi'
-import type { RawMeasureGroup } from './withingsTypes'
+import { WithingsApiError, getMeasureGroups } from './measureApi'
+import type { RawMeasureGroup } from './types'
 
 function rawGroup(grpid: number): RawMeasureGroup {
   return {

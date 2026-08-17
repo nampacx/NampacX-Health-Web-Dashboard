@@ -42,8 +42,6 @@ jobs:
           # An OAuth client ID is public by design (it ships in the bundle either
           # way), so a repository variable is the right home for it — not a secret.
           VITE_GOOGLE_CLIENT_ID: ${{ vars.VITE_GOOGLE_CLIENT_ID }}
-          # Optional. Leave unset to call health.googleapis.com directly.
-          VITE_HEALTH_API_BASE: ${{ vars.VITE_HEALTH_API_BASE }}
           # Withings is optional and independent of Google -- unlike the Google
           # var above, missing these must NOT fail the build. Also public by
           # design; the broker URL just points at the token-exchange Function.

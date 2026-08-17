@@ -4,7 +4,7 @@
  *
  * Withings' own envelope is unusual: errors come back as HTTP 200 with a
  * non-zero `status` in the body, so every caller must check `status !== 0`
- * before trusting `body`. See withingsApi.ts.
+ * before trusting `body`. See measureApi.ts.
  */
 
 /** https://wbsapi.withings.net/measure, action=getmeas */
@@ -51,7 +51,7 @@ export interface Measure {
   value: number
 }
 
-/** Provenance, derived from `attrib`. See withingsMeasureTypes.ts for the mapping. */
+/** Provenance, derived from `attrib`. See measureTypes.ts for the mapping. */
 export type MeasureProvenance = 'device' | 'manual' | 'auto'
 
 /** One weigh-in: several measures recorded together. The renderable unit. */

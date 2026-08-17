@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { DATA_TYPES_BY_ID, DEFAULT_SELECTED_IDS } from '../api/dataTypes'
-import { fetchLatestRecords } from '../api/healthApi'
-import { useAuth } from '../auth/AuthContext'
+import { DATA_TYPES_BY_ID, DEFAULT_SELECTED_IDS } from '../api/google/dataTypes'
+import { fetchLatestRecords } from '../api/google/healthApi'
+import { useGoogleAuth } from '../auth/google/GoogleAuthContext'
 import { useTimeRange } from '../state/timeRange'
-import type { DataTypeDef, FetchOutcome, HealthRecord } from '../types'
+import type { DataTypeDef, FetchOutcome, HealthRecord } from '../api/google/types'
 import Controls, { type ControlsState } from './Controls'
 import OutcomeSummary from './OutcomeSummary'
 import RecordList from './RecordList'
@@ -30,7 +30,7 @@ function matchesQuery(record: HealthRecord, query: string): boolean {
 }
 
 export default function Dashboard() {
-  const { getAccessToken } = useAuth()
+  const { getAccessToken } = useGoogleAuth()
   const { lookbackDays } = useTimeRange()
   const [controls, setControls] = useState<ControlsState>(INITIAL_CONTROLS)
   const [records, setRecords] = useState<HealthRecord[]>([])

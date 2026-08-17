@@ -1,5 +1,5 @@
-import { useAuth } from './auth/AuthContext'
-import { useWithings } from './auth/WithingsAuthContext'
+import { useGoogleAuth } from './auth/google/GoogleAuthContext'
+import { useWithingsAuth } from './auth/withings/WithingsAuthContext'
 import Dashboard from './components/Dashboard'
 import Header from './components/Header'
 import SignIn from './components/SignIn'
@@ -9,8 +9,8 @@ import WithingsSection from './components/WithingsSection'
 import { useTimeRange } from './state/timeRange'
 
 export default function App() {
-  const google = useAuth()
-  const withings = useWithings()
+  const google = useGoogleAuth()
+  const withings = useWithingsAuth()
   const { lookbackDays } = useTimeRange()
 
   // The two providers are independent: either one alone is enough to render

@@ -5,8 +5,8 @@ import {
   normalizeMeasureGroup,
   provenanceFor,
   scaleValue,
-} from './withingsNormalize'
-import type { RawMeasureGroup } from './withingsTypes'
+} from './normalize'
+import type { RawMeasureGroup } from './types'
 
 function group(overrides: Partial<RawMeasureGroup> = {}): RawMeasureGroup {
   return {
@@ -82,7 +82,7 @@ describe('normalizeMeasureGroup', () => {
     const result = normalizeMeasureGroup(
       group({
         measures: [
-          { value: 1, type: 88, unit: 0 }, // bone mass, late in DISPLAY_ORDER
+          { value: 1, type: 88, unit: 0 }, // bone mass, late in MEASURE_TYPE_ORDER
           { value: 1, type: 1, unit: 0 }, // weight, first
           { value: 1, type: 6, unit: 0 }, // fat ratio
         ],
@@ -107,6 +107,23 @@ describe('isBodyCompositionGroup', () => {
     expect(
       isBodyCompositionGroup(
         group({ measures: [{ value: 120, type: 9, unit: 0 }, { value: 80, type: 10, unit: 0 }] }),
+      ),
+    ).toBe(false)
+  })
+
+  it('is false for a blood-pressure reading that also carries heart pulse', () => {
+    // The real shape a Withings BPM emits: 11 (heart pulse) rides along in the
+    // same group as 9/10. 11 is in the label catalog, so deriving membership
+    // from that catalog would misfile every BP reading as a weigh-in.
+    expect(
+      isBodyCompositionGroup(
+        group({
+          measures: [
+            { value: 120, type: 9, unit: 0 },
+            { value: 80, type: 10, unit: 0 },
+            { value: 62, type: 11, unit: 0 },
+          ],
+        }),
       ),
     ).toBe(false)
   })

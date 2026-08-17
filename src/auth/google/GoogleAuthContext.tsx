@@ -7,8 +7,8 @@ import {
   useState,
   type ReactNode,
 } from 'react'
-import { REQUESTED_SCOPES } from '../api/dataTypes'
-import type { UserProfile } from '../types'
+import { REQUESTED_SCOPES } from '../../api/google/dataTypes'
+import type { UserProfile } from '../../api/google/types'
 import {
   clearToken,
   fetchUserProfile,
@@ -21,7 +21,7 @@ import {
   type StoredToken,
 } from './googleAuth'
 
-interface AuthState {
+interface GoogleAuthState {
   token: StoredToken | null
   profile: UserProfile | null
   status: 'loading' | 'signed-out' | 'signed-in'
@@ -33,13 +33,13 @@ interface AuthState {
   getAccessToken: () => string | null
 }
 
-const AuthContext = createContext<AuthState | null>(null)
+const GoogleAuthContext = createContext<GoogleAuthState | null>(null)
 
-export function AuthProvider({ children }: { children: ReactNode }) {
+export function GoogleAuthProvider({ children }: { children: ReactNode }) {
   const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID?.trim() || null
   const [token, setToken] = useState<StoredToken | null>(null)
   const [profile, setProfile] = useState<UserProfile | null>(null)
-  const [status, setStatus] = useState<AuthState['status']>('loading')
+  const [status, setStatus] = useState<GoogleAuthState['status']>('loading')
   const [error, setError] = useState<string | null>(null)
 
   // Restore a token that is still valid for this browser tab.
@@ -101,16 +101,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return token.accessToken
   }, [token])
 
-  const value = useMemo<AuthState>(
+  const value = useMemo<GoogleAuthState>(
     () => ({ token, profile, status, error, clientId, signIn, signOut, getAccessToken }),
     [token, profile, status, error, clientId, signIn, signOut, getAccessToken],
   )
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
+  return <GoogleAuthContext.Provider value={value}>{children}</GoogleAuthContext.Provider>
 }
 
-export function useAuth(): AuthState {
-  const ctx = useContext(AuthContext)
-  if (!ctx) throw new Error('useAuth must be used inside <AuthProvider>')
+export function useGoogleAuth(): GoogleAuthState {
+  const ctx = useContext(GoogleAuthContext)
+  if (!ctx) throw new Error('useGoogleAuth must be used inside <GoogleAuthProvider>')
   return ctx
 }
