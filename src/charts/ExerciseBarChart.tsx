@@ -13,7 +13,6 @@ const PAD_BOTTOM = 26
 const PAD_X = 8
 const BAR_WIDTH = 18
 const BAR_GAP = 10
-const TOOLTIP_X_PAD = 96
 
 const TYPE_COLORS = [
   'var(--stage-deep)',
@@ -72,7 +71,6 @@ export default function ExerciseBarChart({ days }: Props) {
   const colorByType = new Map(typeLegend.map((entry) => [entry.typeKey, entry.color]))
   const summaryDayIndex = activeDay ?? days.length - 1
   const summaryDay = days[summaryDayIndex]
-  const summaryX = PAD_X + summaryDayIndex * (BAR_WIDTH + BAR_GAP) + BAR_WIDTH / 2
 
   return (
     <figure className="chart">
@@ -85,78 +83,84 @@ export default function ExerciseBarChart({ days }: Props) {
       </figcaption>
 
       <div className="chart-plot exercise-day-plot">
-        <svg
-          width={width}
-          height={height}
-          viewBox={`0 0 ${width} ${height}`}
-          className="chart-svg"
-          role="img"
-          aria-label={`Daily total workout time by exercise type for ${days.length} ${days.length === 1 ? 'day' : 'days'} from ${longDate.format(days[0].day)} to ${longDate.format(latest.day)}. The legend and table below list the same categories and totals in text.`}
-        >
-          <line
-            className="chart-grid"
-            x1={PAD_X}
-            x2={width - PAD_X}
-            y1={PAD_TOP + PLOT_HEIGHT}
-            y2={PAD_TOP + PLOT_HEIGHT}
-          />
+        <div className="exercise-day-scroll">
+          <svg
+            width={width}
+            height={height}
+            viewBox={`0 0 ${width} ${height}`}
+            className="chart-svg"
+            role="img"
+            aria-label={`Daily total workout time by exercise type for ${days.length} ${days.length === 1 ? 'day' : 'days'} from ${longDate.format(days[0].day)} to ${longDate.format(latest.day)}. The legend and table below list the same categories and totals in text.`}
+          >
+            <line
+              className="chart-grid"
+              x1={PAD_X}
+              x2={width - PAD_X}
+              y1={PAD_TOP + PLOT_HEIGHT}
+              y2={PAD_TOP + PLOT_HEIGHT}
+            />
 
-          {days.map((day, index) => {
-            const x = PAD_X + index * (BAR_WIDTH + BAR_GAP)
-            const barHeight =
-              maxDuration <= 0 || day.durationMs <= 0 ? 0 : Math.max(1, (day.durationMs / maxDuration) * PLOT_HEIGHT)
-            const y = PAD_TOP + PLOT_HEIGHT - barHeight
-            let nextY = y + barHeight
-            return (
-              <g
-                key={day.dateKey}
-                onPointerEnter={() => setActiveDay(index)}
-                onPointerLeave={() => setActiveDay((current) => (current === index ? null : current))}
-              >
-                {day.byType.map((type, typeIndex) => {
-                  const segmentHeight =
-                    day.durationMs <= 0
-                      ? 0
-                      : typeIndex === day.byType.length - 1
-                        ? Math.max(0, nextY - y)
-                        : (type.durationMs / day.durationMs) * barHeight
-                  nextY -= segmentHeight
-                  return (
+            {days.map((day, index) => {
+              const x = PAD_X + index * (BAR_WIDTH + BAR_GAP)
+              const barHeight =
+                maxDuration <= 0 || day.durationMs <= 0 ? 0 : Math.max(1, (day.durationMs / maxDuration) * PLOT_HEIGHT)
+              const y = PAD_TOP + PLOT_HEIGHT - barHeight
+              let nextY = y + barHeight
+              const active = activeDay === index
+              return (
+                <g
+                  key={day.dateKey}
+                  onPointerEnter={() => setActiveDay(index)}
+                  onPointerLeave={() => setActiveDay((current) => (current === index ? null : current))}
+                >
+                  {day.byType.map((type, typeIndex) => {
+                    const segmentHeight =
+                      day.durationMs <= 0
+                        ? 0
+                        : typeIndex === day.byType.length - 1
+                          ? Math.max(0, nextY - y)
+                          : (type.durationMs / day.durationMs) * barHeight
+                    nextY -= segmentHeight
+                    return (
+                      <rect
+                        key={type.typeKey}
+                        className="exercise-day-bar"
+                        x={x}
+                        y={nextY}
+                        width={BAR_WIDTH}
+                        height={segmentHeight}
+                        style={{ fill: colorByType.get(type.typeKey) }}
+                      />
+                    )
+                  })}
+                  {active && (
                     <rect
-                      key={type.typeKey}
-                      className="exercise-day-bar"
-                      x={x}
-                      y={nextY}
-                      width={BAR_WIDTH}
-                      height={segmentHeight}
-                      style={{ fill: colorByType.get(type.typeKey) }}
+                      className="exercise-day-active-outline"
+                      x={x - 1}
+                      y={y - 1}
+                      width={BAR_WIDTH + 2}
+                      height={Math.max(16, barHeight) + 2}
+                      rx={3}
                     />
-                  )
-                })}
-                <rect className="exercise-day-hitbox" x={x} y={y} width={BAR_WIDTH} height={Math.max(16, barHeight)} />
-                {labels.includes(index) && (
-                  <text
-                    className="chart-tick"
-                    x={x + BAR_WIDTH / 2}
-                    y={PAD_TOP + PLOT_HEIGHT + 16}
-                    textAnchor="middle"
-                  >
-                    {axisLabel.format(day.day)}
-                  </text>
-                )}
-              </g>
-            )
-          })}
-        </svg>
+                  )}
+                  <rect className="exercise-day-hitbox" x={x} y={y} width={BAR_WIDTH} height={Math.max(16, barHeight)} />
+                  {labels.includes(index) && (
+                    <text
+                      className="chart-tick"
+                      x={x + BAR_WIDTH / 2}
+                      y={PAD_TOP + PLOT_HEIGHT + 16}
+                      textAnchor="middle"
+                    >
+                      {axisLabel.format(day.day)}
+                    </text>
+                  )}
+                </g>
+              )
+            })}
+          </svg>
+        </div>
 
-        <div
-          className="chart-tooltip exercise-day-tooltip"
-          style={{
-            left: `${Math.min(Math.max(summaryX, TOOLTIP_X_PAD), Math.max(TOOLTIP_X_PAD, width - TOOLTIP_X_PAD))}px`,
-            top: `${Math.max(PAD_TOP + 8, PAD_TOP + PLOT_HEIGHT - (summaryDay.durationMs / Math.max(1, maxDuration)) * PLOT_HEIGHT)}px`,
-          }}
-          role="status"
-        >
+        <div className="exercise-day-detail" role="status">
           <strong>{longDate.format(summaryDay.day)}</strong>
           <span className="muted">{formatDuration(summaryDay.durationMs)} total</span>
           <table>

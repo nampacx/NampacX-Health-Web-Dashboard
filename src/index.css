@@ -1170,12 +1170,26 @@ code {
 }
 
 .exercise-day-plot {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 10px;
+}
+
+.exercise-day-scroll {
   overflow-x: auto;
   padding-bottom: 2px;
 }
 
 .exercise-day-bar {
   fill: var(--accent);
+}
+
+.exercise-day-active-outline {
+  fill: none;
+  stroke: var(--text);
+  stroke-width: 1;
+  pointer-events: none;
 }
 
 .exercise-day-hitbox {
@@ -1206,26 +1220,41 @@ code {
   flex: 0 0 auto;
 }
 
-.exercise-day-tooltip {
+.exercise-day-detail {
+  min-width: 188px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
   display: block;
   padding: 8px 10px;
   white-space: normal;
+  font-size: 0.8rem;
 }
 
-.exercise-day-tooltip table {
+.exercise-day-detail table {
   border-collapse: collapse;
   margin-top: 4px;
   min-width: 172px;
 }
 
-.exercise-day-tooltip td {
+.exercise-day-detail td {
   padding: 1px 0;
 }
 
-.exercise-day-tooltip td:first-child {
+.exercise-day-detail td:first-child {
   display: flex;
   align-items: center;
   gap: 6px;
+}
+
+@media (max-width: 720px) {
+  .exercise-day-plot {
+    grid-template-columns: 1fr;
+  }
+
+  .exercise-day-detail {
+    min-width: 0;
+  }
 }
 
 .exercise-list {
