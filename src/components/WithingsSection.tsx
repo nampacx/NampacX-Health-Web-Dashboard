@@ -8,6 +8,12 @@ import { toSeries } from '../api/withings/series'
 import { useWithingsAuth } from '../auth/withings/WithingsAuthContext'
 import LineChart from '../charts/LineChart'
 import { useWithingsData } from '../state/withingsData'
+import {
+  WITHINGS_TAB_IDS,
+  WITHINGS_TAB_LABELS,
+  useWithingsTabState,
+} from '../state/tabs'
+import Tabs, { tabPanelId, tabButtonId } from './Tabs'
 import TimeRangeSelect from './TimeRangeSelect'
 import WithingsGroupCard from './WithingsGroupCard'
 
@@ -21,9 +27,15 @@ function chartMeta(type: number) {
   }
 }
 
+const WITHINGS_TAB_ITEMS = WITHINGS_TAB_IDS.map((id) => ({
+  id,
+  label: WITHINGS_TAB_LABELS[id],
+}))
+
 export default function WithingsSection() {
   const { disconnect } = useWithingsAuth()
   const { groups, loading, error, loadedAt, reload } = useWithingsData()
+  const [activeTab, setActiveTab] = useWithingsTabState()
 
   const weight = useMemo(() => toSeries(groups, WEIGHT_TYPE), [groups])
   const fatRatio = useMemo(() => toSeries(groups, FAT_RATIO_TYPE), [groups])
@@ -49,6 +61,15 @@ export default function WithingsSection() {
 
       {error && <p className="banner banner-error">{error}</p>}
 
+      <Tabs
+        items={WITHINGS_TAB_ITEMS}
+        active={activeTab}
+        onChange={setActiveTab}
+        label="Withings views"
+        idPrefix="withings"
+        variant="sub"
+      />
+
       {loading && groups.length === 0 ? (
         <p className="muted">Loading your Withings measurements…</p>
       ) : groups.length === 0 ? (
@@ -61,28 +82,42 @@ export default function WithingsSection() {
         </section>
       ) : (
         <>
-          {/* Two charts rather than one with two y-scales: kg and % share no
-              scale, and overlaying them would invent a correlation. */}
-          <div className="charts">
-            <LineChart
-              {...chartMeta(WEIGHT_TYPE)}
-              colorVar="--series-weight"
-              points={weight}
-              loading={loading}
-            />
-            <LineChart
-              {...chartMeta(FAT_RATIO_TYPE)}
-              colorVar="--series-fat"
-              points={fatRatio}
-              loading={loading}
-            />
+          <div
+            role="tabpanel"
+            id={tabPanelId('withings', 'charts')}
+            aria-labelledby={tabButtonId('withings', 'charts')}
+            hidden={activeTab !== 'charts'}
+          >
+            {/* Two charts rather than one with two y-scales: kg and % share no
+                scale, and overlaying them would invent a correlation. */}
+            <div className="charts">
+              <LineChart
+                {...chartMeta(WEIGHT_TYPE)}
+                colorVar="--series-weight"
+                points={weight}
+                loading={loading}
+              />
+              <LineChart
+                {...chartMeta(FAT_RATIO_TYPE)}
+                colorVar="--series-fat"
+                points={fatRatio}
+                loading={loading}
+              />
+            </div>
           </div>
 
-          <ul className="records">
-            {groups.map((group, index) => (
-              <WithingsGroupCard key={group.key} group={group} previous={groups[index + 1]} />
-            ))}
-          </ul>
+          <div
+            role="tabpanel"
+            id={tabPanelId('withings', 'readings')}
+            aria-labelledby={tabButtonId('withings', 'readings')}
+            hidden={activeTab !== 'readings'}
+          >
+            <ul className="records">
+              {groups.map((group, index) => (
+                <WithingsGroupCard key={group.key} group={group} previous={groups[index + 1]} />
+              ))}
+            </ul>
+          </div>
         </>
       )}
     </>
