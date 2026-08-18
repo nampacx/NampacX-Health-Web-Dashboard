@@ -232,11 +232,11 @@ describe('nutritionTotals', () => {
     record(meal('2026-08-16T12:00:00Z', { carbs: 40, fat: 8, protein: 30, kcal: 200 }, 'c')),
   ])
 
-  it('adds up days, entries and grams', () => {
+  it('counts days and entries, and averages grams per day', () => {
     const totals = nutritionTotals(days)
     expect(totals.days).toBe(2)
     expect(totals.entries).toBe(2)
-    expect(totals.grams).toEqual({ carbs: 100, fat: 20, protein: 50 })
+    expect(totals.averageGramsPerDay).toEqual({ carbs: 50, fat: 10, protein: 25 })
   })
 
   it('averages over logged days only', () => {
@@ -248,7 +248,7 @@ describe('nutritionTotals', () => {
       days: 0,
       entries: 0,
       averageKcalPerDay: null,
-      grams: { carbs: 0, fat: 0, protein: 0 },
+      averageGramsPerDay: { carbs: 0, fat: 0, protein: 0 },
     })
   })
 })
@@ -320,7 +320,7 @@ describe('nutritionDays, partial boundary day', () => {
     const totals = nutritionTotals(nutritionDays(records, { truncated: true }))
     expect(totals.days).toBe(2)
     expect(totals.entries).toBe(2)
-    expect(totals.grams).toEqual({ carbs: 100, fat: 20, protein: 50 })
+    expect(totals.averageGramsPerDay).toEqual({ carbs: 50, fat: 10, protein: 25 })
     expect(totals.averageKcalPerDay).toBe(300)
   })
 
