@@ -73,7 +73,12 @@ export const DATA_TYPES: DataTypeDef[] = [
   },
 
   // Nutrition
-  { id: 'nutrition-log', label: 'Nutrition log', category: 'Nutrition', recordType: 'sample', scope: 'nutrition.readonly' },
+  // `recordType: 'session'` contradicts the data-type table, which files this as
+  // a Sample — but the filter grammar names real proto fields, and `NutritionLog`
+  // has an `interval` (a SessionTimeInterval) and no `sample_time` at all. A
+  // `nutrition_log.sample_time.civil_time` filter therefore cannot resolve, and
+  // the time range would silently stop applying to nutrition.
+  { id: 'nutrition-log', label: 'Nutrition log', category: 'Nutrition', recordType: 'session', scope: 'nutrition.readonly' },
   { id: 'hydration-log', label: 'Hydration log', category: 'Nutrition', recordType: 'session', scope: 'nutrition.readonly' },
   { id: 'food', label: 'Food', category: 'Nutrition', recordType: 'food', scope: 'nutrition.readonly' },
   // A reference table, not an observation: the units a food can be logged in.

@@ -11,6 +11,7 @@ import {
 import { DATA_TYPES_BY_ID, DEFAULT_SELECTED_IDS } from '../api/google/dataTypes'
 import { fetchLatestRecords } from '../api/google/healthApi'
 import { exerciseSessions, type ExerciseSession } from '../api/google/exercise'
+import { nutritionDays, type NutritionDay } from '../api/google/nutrition'
 import { fetchHealthProfile, type HealthProfile } from '../api/google/profile'
 import { sleepNights, type SleepNight } from '../api/google/sleep'
 import type { DataTypeDef, FetchOutcome, HealthRecord } from '../api/google/types'
@@ -43,6 +44,8 @@ interface GoogleDataState {
    */
   nights: SleepNight[]
   sessions: ExerciseSession[]
+  /** The nutrition logs, summed per civil day, newest-first. */
+  nutrition: NutritionDay[]
   outcomes: FetchOutcome[]
   loading: boolean
   error: string | null
@@ -204,6 +207,7 @@ export function GoogleDataProvider({ children }: { children: ReactNode }) {
 
   const nights = useMemo(() => sleepNights(records), [records])
   const sessions = useMemo(() => exerciseSessions(records), [records])
+  const nutrition = useMemo(() => nutritionDays(records), [records])
 
   const value = useMemo<GoogleDataState>(
     () => ({
@@ -213,6 +217,7 @@ export function GoogleDataProvider({ children }: { children: ReactNode }) {
       visible,
       nights,
       sessions,
+      nutrition,
       outcomes,
       loading,
       error,
@@ -228,6 +233,7 @@ export function GoogleDataProvider({ children }: { children: ReactNode }) {
       visible,
       nights,
       sessions,
+      nutrition,
       outcomes,
       loading,
       error,

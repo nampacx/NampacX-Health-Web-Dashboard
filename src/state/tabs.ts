@@ -16,12 +16,13 @@ export const TAB_LABELS: Record<TabId, string> = {
  * same records, and it needs the same data-type selection and time range as
  * the activity list.
  */
-export const GOOGLE_TAB_IDS = ['sleep', 'exercise', 'activity', 'profile'] as const
+export const GOOGLE_TAB_IDS = ['sleep', 'exercise', 'nutrition', 'activity', 'profile'] as const
 export type GoogleTabId = (typeof GOOGLE_TAB_IDS)[number]
 
 export const GOOGLE_TAB_LABELS: Record<GoogleTabId, string> = {
   sleep: 'Sleep',
   exercise: 'Exercise',
+  nutrition: 'Nutrition',
   activity: 'All activity',
   // Last, and the one view the controls above the bar do not reach: the profile
   // is a single object at its own endpoint, with no time range to apply to it.

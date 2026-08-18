@@ -7,6 +7,7 @@ import {
 } from '../state/tabs'
 import Controls from './Controls'
 import ExerciseSection from './ExerciseSection'
+import NutritionSection from './NutritionSection'
 import OutcomeSummary from './OutcomeSummary'
 import ProfileSection from './ProfileSection'
 import RecordList from './RecordList'
@@ -28,6 +29,7 @@ export default function Dashboard() {
     visible,
     nights,
     sessions,
+    nutrition,
     outcomes,
     loading,
     error,
@@ -41,6 +43,7 @@ export default function Dashboard() {
   const badges: Partial<Record<GoogleTabId, string>> = {
     sleep: String(nights.length),
     exercise: String(sessions.length),
+    nutrition: String(nutrition.length),
     activity: String(visible.length),
   }
 
@@ -77,6 +80,8 @@ export default function Dashboard() {
           <SleepSection />
         ) : tab === 'exercise' ? (
           <ExerciseSection />
+        ) : tab === 'nutrition' ? (
+          <NutritionSection />
         ) : tab === 'profile' ? (
           <ProfileSection />
         ) : (
