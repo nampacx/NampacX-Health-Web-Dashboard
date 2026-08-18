@@ -25,6 +25,8 @@ describe('ExerciseBarChart', () => {
   it('renders the detail panel even before hover and defaults it to the latest day', () => {
     const markup = renderToStaticMarkup(createElement(ExerciseBarChart, { days }))
     expect(markup).toContain('class="exercise-day-detail"')
+    expect(markup).toContain('class="exercise-day-detail-date"')
+    expect(markup).toContain('class="muted exercise-day-detail-total"')
     expect(markup).toContain('17 min total')
     expect(markup).toContain('Cardio workout')
   })

@@ -134,14 +134,24 @@ export default function ExerciseBarChart({ days }: Props) {
                     )
                   })}
                   {active && (
-                    <rect
-                      className="exercise-day-active-outline"
-                      x={x - 1}
-                      y={y - 1}
-                      width={BAR_WIDTH + 2}
-                      height={Math.max(16, barHeight) + 2}
-                      rx={3}
-                    />
+                    <>
+                      <rect
+                        className="exercise-day-active-glow"
+                        x={x - 3}
+                        y={y - 3}
+                        width={BAR_WIDTH + 6}
+                        height={Math.max(16, barHeight) + 6}
+                        rx={5}
+                      />
+                      <rect
+                        className="exercise-day-active-outline"
+                        x={x - 1}
+                        y={y - 1}
+                        width={BAR_WIDTH + 2}
+                        height={Math.max(16, barHeight) + 2}
+                        rx={3}
+                      />
+                    </>
                   )}
                   <rect className="exercise-day-hitbox" x={x} y={y} width={BAR_WIDTH} height={Math.max(16, barHeight)} />
                   {labels.includes(index) && (
@@ -161,8 +171,8 @@ export default function ExerciseBarChart({ days }: Props) {
         </div>
 
         <div className="exercise-day-detail" role="status">
-          <strong>{longDate.format(summaryDay.day)}</strong>
-          <span className="muted">{formatDuration(summaryDay.durationMs)} total</span>
+          <strong className="exercise-day-detail-date">{longDate.format(summaryDay.day)}</strong>
+          <span className="muted exercise-day-detail-total">{formatDuration(summaryDay.durationMs)} total</span>
           <table>
             <tbody>
               {summaryDay.byType.map((type) => (

@@ -1185,10 +1185,17 @@ code {
   fill: var(--accent);
 }
 
+.exercise-day-active-glow {
+  fill: none;
+  stroke: rgb(255 255 255 / 28%);
+  stroke-width: 5;
+  pointer-events: none;
+}
+
 .exercise-day-active-outline {
   fill: none;
   stroke: var(--text);
-  stroke-width: 1;
+  stroke-width: 1.5;
   pointer-events: none;
 }
 
@@ -1229,6 +1236,11 @@ code {
   padding: 8px 10px;
   white-space: normal;
   font-size: 0.8rem;
+}
+
+.exercise-day-detail-date,
+.exercise-day-detail-total {
+  display: block;
 }
 
 .exercise-day-detail table {
