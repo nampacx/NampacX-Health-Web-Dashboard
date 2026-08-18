@@ -1401,3 +1401,27 @@ code {
   white-space: nowrap;
   border: 0;
 }
+
+/* A clipped day still shows its data — it is not wrong, it is incomplete — but
+   it must never read as a whole day at a glance. */
+.nutrition-card-partial {
+  border-style: dashed;
+}
+
+.nutrition-partial-note {
+  margin: 12px 0 0;
+  font-size: 0.8rem;
+  display: block;
+  max-width: 68ch;
+}
+
+.nutrition-head h3 .pill {
+  margin-left: 8px;
+  vertical-align: middle;
+}
+
+.pill-warn {
+  background: var(--warn-bg);
+  border-color: var(--warn-border);
+  color: var(--text);
+}

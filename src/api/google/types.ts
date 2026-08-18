@@ -80,4 +80,12 @@ export interface FetchOutcome {
   status: 'ok' | 'error'
   count: number
   error?: string
+  /**
+   * The row budget ran out before the data did — the API still had a
+   * `nextPageToken` to give. Load-bearing for any view that groups rows into a
+   * larger unit: results come back newest-first, so the *oldest* thing on screen
+   * is built from a partial set of rows and understates itself. Nutrition is the
+   * case that bites, where one row is one logged food and a card is a whole day.
+   */
+  truncated: boolean
 }

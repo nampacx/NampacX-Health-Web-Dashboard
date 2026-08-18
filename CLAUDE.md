@@ -111,7 +111,14 @@ Data flows **auth → fetch → normalize → group → render**.
   rather than failing the whole load.
 
   `listDataPoints` **follows `nextPageToken`** until it has `pageSize` records, so that control is
-  rows-per-data-type, not a request's page size. This matters most for the two types people want
+  rows-per-data-type, not a request's page size. A token left over when it stops means the *row
+  budget* ran out rather than the data, which is reported as `FetchOutcome.truncated` — day-grouping
+  views need it to know their oldest entry is clipped.
+
+  **The lookback window is snapped to local midnight**, not run back exactly N×24 h from now.
+  Otherwise every day-grouped view shows a boundary day cut at whatever time of day it happens to
+  be, drawn identically to a whole one. Widening the window by up to a day is the cheaper error, and
+  it is what "Last 14 days" already implies. This matters most for the two types people want
   history for: the API caps a single page at **25 for `sleep` and `exercise`** (10000 for the rest)
   however much more is asked for, so before paging there was no way to see a 26th night.
 
@@ -264,6 +271,15 @@ Data flows **auth → fetch → normalize → group → render**.
   - **Days are keyed through `startUtcOffset`**, like `sleep.ts` — a 00:30 snack at +02:00 is
     `22:30Z` the day before, and keying in UTC files it under the wrong day with nothing looking
     broken.
+
+  **One nutrition row is one logged food, not one day**, which is why the row control and the cards
+  count different things and why `FetchOutcome.truncated` exists. Results arrive newest-first, so a
+  fetch that runs out of rows stops part-way through the *oldest* day it reached: that day's pie and
+  totals understate it, and it would otherwise render identically to a whole one. `nutritionDays`
+  takes the truncation flag and marks only that day `partial`; the card shows it dashed and says so,
+  and `nutritionTotals` leaves partial days out of the average, which is the one figure that cannot
+  show its own uncertainty. Sleep and exercise need none of this — their rows and their cards are
+  the same unit.
 
   `nutrition-log` is catalogued as `recordType: 'session'`, which **contradicts the data-type
   table's "Sample"**. The table is describing something other than the filter grammar: `NutritionLog`

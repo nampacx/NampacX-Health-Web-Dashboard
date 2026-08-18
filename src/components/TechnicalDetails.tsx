@@ -99,7 +99,9 @@ export default function TechnicalDetails() {
                       {outcome.status}
                     </span>{' '}
                     {outcome.status === 'ok'
-                      ? `${outcome.count} ${outcome.count === 1 ? 'record' : 'records'}`
+                      ? `${outcome.count} ${outcome.count === 1 ? 'record' : 'records'}${
+                          outcome.truncated ? ' · row limit reached, more available' : ''
+                        }`
                       : outcome.error}
                   </span>
                 </div>

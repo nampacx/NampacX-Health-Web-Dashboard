@@ -89,6 +89,23 @@ export interface NutritionDay {
   derivedKcal: number
   /** Sum of `energy.kcal`. Null when no entry that day reported energy. */
   loggedKcal: number | null
+  /**
+   * The row budget cut this day off part-way, so its totals understate what was
+   * eaten. Only ever the oldest day on screen: the API returns newest-first, so
+   * a fetch that stops early stops in the middle of the earliest day it reached.
+   * Rendering it as a normal day would show a wrong pie with no hint it is wrong.
+   */
+  partial: boolean
+}
+
+export interface NutritionDaysOptions {
+  /**
+   * The fetch hit its row limit with more data available — `FetchOutcome.truncated`
+   * for `nutrition-log`. One nutrition row is one logged food, not one day, so
+   * this is routine rather than exceptional: a handful of items per day exhausts
+   * a small row budget within a day or two.
+   */
+  truncated?: boolean
 }
 
 type Json = Record<string, unknown>
@@ -197,7 +214,10 @@ export function totalGrams(grams: MacroGrams): number {
  * day: a nutrition log without an interval cannot be attributed to a date, and
  * inventing one would put food on a day it was not eaten.
  */
-export function nutritionDays(records: HealthRecord[]): NutritionDay[] {
+export function nutritionDays(
+  records: HealthRecord[],
+  { truncated = false }: NutritionDaysOptions = {},
+): NutritionDay[] {
   const byDate = new Map<string, NutritionEntry[]>()
 
   for (const record of records) {
@@ -211,7 +231,7 @@ export function nutritionDays(records: HealthRecord[]): NutritionDay[] {
     else byDate.set(dateKey, [entry])
   }
 
-  return Array.from(byDate, ([dateKey, entries]) => {
+  const days = Array.from(byDate, ([dateKey, entries]) => {
     const grams = entries.reduce<MacroGrams>(
       (acc, entry) => ({
         carbs: acc.carbs + entry.grams.carbs,
@@ -237,8 +257,15 @@ export function nutritionDays(records: HealthRecord[]): NutritionDay[] {
         withEnergy.length > 0
           ? withEnergy.reduce((sum, entry) => sum + (entry.loggedKcal ?? 0), 0)
           : null,
+      partial: false,
     }
   }).sort((a, b) => b.dateKey.localeCompare(a.dateKey))
+
+  // Newest-first, so the truncated tail is the last element and only that one.
+  const oldest = days[days.length - 1]
+  if (truncated && oldest) oldest.partial = true
+
+  return days
 }
 
 export interface NutritionTotals {
@@ -249,7 +276,16 @@ export interface NutritionTotals {
   grams: MacroGrams
 }
 
-export function nutritionTotals(days: NutritionDay[]): NutritionTotals {
+/**
+ * Window totals, over the **complete** days only.
+ *
+ * A partial day would drag the average down by however much of it was cut off,
+ * and an average is the one figure here that cannot show its own uncertainty.
+ * The count reports what was averaged, so a dropped day is visible rather than
+ * silently absorbed.
+ */
+export function nutritionTotals(allDays: NutritionDay[]): NutritionTotals {
+  const days = allDays.filter((day) => !day.partial)
   const grams = days.reduce<MacroGrams>(
     (acc, day) => ({
       carbs: acc.carbs + day.grams.carbs,

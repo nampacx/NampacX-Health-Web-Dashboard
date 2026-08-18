@@ -102,6 +102,22 @@ export interface ListOptions {
 const MAX_PAGES = 40
 
 /**
+ * Midnight at the start of `date`, in the viewer's zone.
+ *
+ * "Last 14 days" is snapped to a day boundary rather than run back exactly
+ * 14×24 h from now, because every view that groups rows into days would
+ * otherwise show a boundary day cut at whatever time of day it happens to be —
+ * a half-day of food or steps, rendered identically to a whole one. Widening
+ * the window by up to a day is the cheaper error, and it is what the label
+ * already implies.
+ */
+function startOfLocalDay(date: Date): Date {
+  const start = new Date(date)
+  start.setHours(0, 0, 0, 0)
+  return start
+}
+
+/**
  * Which spelling of the data type the filter grammar wants, once we know.
  *
  * Module-level rather than per-call because it is a property of the API, not of
@@ -139,7 +155,7 @@ async function fetchFirstPage(
   const baseParams = { page_size: String(pageSize) }
 
   if (lookbackDays > 0) {
-    const since = new Date(Date.now() - lookbackDays * 24 * 60 * 60 * 1000)
+    const since = startOfLocalDay(new Date(Date.now() - lookbackDays * 24 * 60 * 60 * 1000))
 
     for (const dialect of dialectsToTry()) {
       const filter = timeFilter(dataType, since, dialect)
@@ -240,13 +256,21 @@ export async function fetchLatestRecords(
       const records = (response.dataPoints ?? []).map((point, index) =>
         normalizeDataPoint(point, dataType, index),
       )
-      return { dataType, status: 'ok', count: records.length, records }
+      return {
+        dataType,
+        status: 'ok',
+        count: records.length,
+        // A token left over means the row budget stopped the fetch, not the data.
+        truncated: Boolean(response.nextPageToken),
+        records,
+      }
     } catch (err) {
       return {
         dataType,
         status: 'error',
         count: 0,
         error: err instanceof Error ? err.message : String(err),
+        truncated: false,
         records: [],
       }
     }
