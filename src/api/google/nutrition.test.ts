@@ -277,3 +277,63 @@ describe('humanizeMealType', () => {
     expect(humanizeMealType('BEFORE_LUNCH')).toBe('Before lunch')
   })
 })
+
+/**
+ * One nutrition row is one logged food, not one day, so a modest row budget runs
+ * out inside a day or two. Results arrive newest-first, which means the fetch
+ * stops part-way through the *oldest* day it reached — and that day's pie and
+ * totals understate it with nothing on screen saying so.
+ */
+describe('nutritionDays, partial boundary day', () => {
+  const records = [
+    record(meal('2026-08-17T07:30:00Z', { carbs: 60, fat: 12, protein: 20, kcal: 400 }, 'a')),
+    record(meal('2026-08-16T12:00:00Z', { carbs: 40, fat: 8, protein: 30, kcal: 200 }, 'b')),
+    record(meal('2026-08-15T12:00:00Z', { carbs: 10, fat: 2, protein: 5, kcal: 100 }, 'c')),
+  ]
+
+  it('marks only the oldest day when the row budget ran out', () => {
+    const days = nutritionDays(records, { truncated: true })
+    expect(days.map((day) => day.partial)).toEqual([false, false, true])
+  })
+
+  it('marks nothing when the data ran out on its own', () => {
+    const days = nutritionDays(records, { truncated: false })
+    expect(days.every((day) => !day.partial)).toBe(true)
+  })
+
+  it('defaults to marking nothing, so a caller that does not know cannot cry wolf', () => {
+    expect(nutritionDays(records).every((day) => !day.partial)).toBe(true)
+  })
+
+  it('marks the only day when a single day was cut', () => {
+    const one = [record(meal('2026-08-17T07:30:00Z', { carbs: 60 }, 'a'))]
+    expect(nutritionDays(one, { truncated: true })[0].partial).toBe(true)
+  })
+
+  it('survives truncation with nothing to mark', () => {
+    expect(nutritionDays([], { truncated: true })).toEqual([])
+  })
+
+  // A half-day would drag the mean down by however much was cut off, and an
+  // average is the one figure here that cannot show its own uncertainty.
+  it('keeps partial days out of the totals and the average', () => {
+    const totals = nutritionTotals(nutritionDays(records, { truncated: true }))
+    expect(totals.days).toBe(2)
+    expect(totals.entries).toBe(2)
+    expect(totals.grams).toEqual({ carbs: 100, fat: 20, protein: 50 })
+    expect(totals.averageKcalPerDay).toBe(300)
+  })
+
+  it('counts every day when none was cut', () => {
+    const totals = nutritionTotals(nutritionDays(records, { truncated: false }))
+    expect(totals.days).toBe(3)
+    expect(totals.averageKcalPerDay).toBeCloseTo(700 / 3, 6)
+  })
+
+  // The day itself still renders — it is incomplete, not wrong.
+  it('leaves the partial day figures themselves intact', () => {
+    const oldest = nutritionDays(records, { truncated: true })[2]
+    expect(oldest.grams).toEqual({ carbs: 10, fat: 2, protein: 5 })
+    expect(oldest.loggedKcal).toBe(100)
+  })
+})

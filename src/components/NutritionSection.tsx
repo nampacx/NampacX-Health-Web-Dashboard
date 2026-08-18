@@ -12,6 +12,7 @@ export default function NutritionSection() {
   const totals = useMemo(() => nutritionTotals(nutrition), [nutrition])
 
   const selected = controls.selectedIds.includes('nutrition-log')
+  const partialDays = nutrition.filter((day) => day.partial).length
 
   return (
     <>
@@ -43,6 +44,13 @@ export default function NutritionSection() {
           <div className="sleep-stat">
             <span className="sleep-stat-label">Days logged</span>
             <span className="sleep-stat-value">{totals.days}</span>
+            {/* The averages are over complete days only, so say so where the
+                count would otherwise look like it disagrees with the cards. */}
+            {partialDays > 0 && (
+              <span className="muted sleep-stat-hint">
+                +{partialDays} partial, not counted
+              </span>
+            )}
           </div>
           {totals.averageKcalPerDay !== null && (
             <div className="sleep-stat">

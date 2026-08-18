@@ -49,10 +49,13 @@ export default function NutritionDayCard({ day }: { day: NutritionDay }) {
   const showGapNote = gap >= 0.05
 
   return (
-    <li className="card nutrition-card">
+    <li className={day.partial ? 'card nutrition-card nutrition-card-partial' : 'card nutrition-card'}>
       <div className="nutrition-head">
         <div>
-          <h3>{dayFormat.format(day.date)}</h3>
+          <h3>
+            {dayFormat.format(day.date)}
+            {day.partial && <span className="pill pill-warn">Incomplete</span>}
+          </h3>
           <span className="muted">
             {day.entries.length} {day.entries.length === 1 ? 'item' : 'items'} logged
           </span>
@@ -62,6 +65,14 @@ export default function NutritionDayCard({ day }: { day: NutritionDay }) {
           <span className="muted"> kcal{day.loggedKcal === null && ' (derived)'}</span>
         </div>
       </div>
+
+      {day.partial && (
+        <p className="banner banner-warn nutrition-partial-note">
+          Only part of this day was fetched — the row limit ran out before the day did, and results
+          arrive newest-first, so the earliest meals are missing. Every figure below understates the
+          day. Raise <strong>Rows per data type</strong> to pull the rest.
+        </p>
+      )}
 
       {!hasMacros(day) ? (
         <p className="muted nutrition-empty">

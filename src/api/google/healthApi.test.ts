@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { DATA_TYPES_BY_ID } from './dataTypes'
-import { listDataPoints, resetFilterDialect } from './healthApi'
+import { fetchLatestRecords, listDataPoints, resetFilterDialect } from './healthApi'
 import type { DataTypeDef } from './types'
 
 function typeById(id: string): DataTypeDef {
@@ -211,5 +211,88 @@ describe('listDataPoints, pagination', () => {
     const result = await listDataPoints(typeById('steps'), { ...options, pageSize: 10 })
     expect(fetchMock).toHaveBeenCalledTimes(1)
     expect(result.dataPoints).toHaveLength(10)
+  })
+})
+
+/**
+ * "Last 14 days" is snapped to a day boundary rather than run back exactly
+ * 14x24 h. Without it every day-grouped view shows a boundary day cut at
+ * whatever time of day it happens to be, rendered identically to a whole one.
+ */
+describe('listDataPoints, window', () => {
+  let fetchMock: ReturnType<typeof vi.fn>
+
+  beforeEach(() => {
+    resetFilterDialect()
+    fetchMock = vi.fn()
+    vi.stubGlobal('fetch', fetchMock)
+  })
+
+  afterEach(() => vi.unstubAllGlobals())
+
+  it('starts the window at midnight, not at the current time of day', async () => {
+    fetchMock.mockResolvedValueOnce(page(1))
+    await listDataPoints(typeById('steps'), { accessToken: 't', pageSize: 10, lookbackDays: 14 })
+    expect(filterOf(urlsOf(fetchMock)[0])).toMatch(/T00:00:00"$/)
+  })
+
+  // Daily types take a date literal, which is already a day boundary.
+  it('leaves the date-only daily filter alone', async () => {
+    fetchMock.mockResolvedValueOnce(page(1))
+    await listDataPoints(typeById('daily-resting-heart-rate'), {
+      accessToken: 't',
+      pageSize: 10,
+      lookbackDays: 14,
+    })
+    expect(filterOf(urlsOf(fetchMock)[0])).toMatch(/\d{4}-\d{2}-\d{2}"$/)
+  })
+})
+
+/**
+ * Whether the row budget or the data ran out first. Load-bearing for any view
+ * that groups rows into a larger unit: results are newest-first, so a fetch that
+ * stops early stops mid-way through the oldest thing it reached.
+ */
+describe('fetchLatestRecords, truncation', () => {
+  let fetchMock: ReturnType<typeof vi.fn>
+
+  beforeEach(() => {
+    resetFilterDialect()
+    fetchMock = vi.fn()
+    vi.stubGlobal('fetch', fetchMock)
+  })
+
+  afterEach(() => vi.unstubAllGlobals())
+
+  it('reports truncated when the API still had a page to give', async () => {
+    fetchMock.mockResolvedValueOnce(page(10, 'tok-1'))
+    const { outcomes } = await fetchLatestRecords([typeById('nutrition-log')], {
+      accessToken: 't',
+      pageSize: 10,
+      lookbackDays: 0,
+    })
+    expect(outcomes[0].truncated).toBe(true)
+    expect(outcomes[0].count).toBe(10)
+  })
+
+  it('reports not truncated when the data simply ran out', async () => {
+    fetchMock.mockResolvedValueOnce(page(4))
+    const { outcomes } = await fetchLatestRecords([typeById('nutrition-log')], {
+      accessToken: 't',
+      pageSize: 10,
+      lookbackDays: 0,
+    })
+    expect(outcomes[0].truncated).toBe(false)
+  })
+
+  it('reports not truncated on a failure, which is a different problem', async () => {
+    fetchMock.mockResolvedValueOnce(new Response('{}', { status: 403 }))
+    const { outcomes } = await fetchLatestRecords([typeById('steps')], {
+      accessToken: 't',
+      pageSize: 10,
+      lookbackDays: 0,
+    })
+    expect(outcomes[0].status).toBe('error')
+    expect(outcomes[0].truncated).toBe(false)
   })
 })

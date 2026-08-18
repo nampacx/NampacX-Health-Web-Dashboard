@@ -63,7 +63,10 @@ interface GoogleDataState {
 
 const INITIAL_CONTROLS: GoogleControlsState = {
   selectedIds: DEFAULT_SELECTED_IDS,
-  pageSize: 10,
+  // 25 rather than 10: for sleep and exercise this is one row per night or
+  // workout and still a single request, but nutrition logs several rows a day,
+  // so 10 ran out inside two days.
+  pageSize: 25,
   query: '',
 }
 
@@ -207,7 +210,19 @@ export function GoogleDataProvider({ children }: { children: ReactNode }) {
 
   const nights = useMemo(() => sleepNights(records), [records])
   const sessions = useMemo(() => exerciseSessions(records), [records])
-  const nutrition = useMemo(() => nutritionDays(records), [records])
+  // The nutrition grouping needs to know whether the fetch ran out of rows, so
+  // it can mark the day that got cut in half rather than drawing it as a whole.
+  const nutritionTruncated = useMemo(
+    () =>
+      outcomes.some(
+        (outcome) => outcome.dataType.id === 'nutrition-log' && outcome.truncated,
+      ),
+    [outcomes],
+  )
+  const nutrition = useMemo(
+    () => nutritionDays(records, { truncated: nutritionTruncated }),
+    [records, nutritionTruncated],
+  )
 
   const value = useMemo<GoogleDataState>(
     () => ({
