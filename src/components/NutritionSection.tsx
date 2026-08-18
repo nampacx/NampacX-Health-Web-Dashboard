@@ -62,9 +62,9 @@ export default function NutritionSection() {
           )}
           {MACROS.map((macro) => (
             <div key={macro.id} className="sleep-stat">
-              <span className="sleep-stat-label">{macro.label} total</span>
+              <span className="sleep-stat-label">{macro.label} per day</span>
               <span className="sleep-stat-value">
-                {gramFormat.format(totals.grams[macro.id])} g
+                {gramFormat.format(totals.averageGramsPerDay[macro.id])} g
               </span>
             </div>
           ))}

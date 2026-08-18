@@ -273,11 +273,12 @@ export interface NutritionTotals {
   entries: number
   /** Mean per *logged* day, which is the only day an average can speak for. */
   averageKcalPerDay: number | null
-  grams: MacroGrams
+  /** Mean grams per *logged* day, over the same complete-day set as kcal. */
+  averageGramsPerDay: MacroGrams
 }
 
 /**
- * Window totals, over the **complete** days only.
+ * Summary figures, over the **complete** days only.
  *
  * A partial day would drag the average down by however much of it was cut off,
  * and an average is the one figure here that cannot show its own uncertainty.
@@ -304,7 +305,14 @@ export function nutritionTotals(allDays: NutritionDay[]): NutritionTotals {
     entries: days.reduce((sum, day) => sum + day.entries.length, 0),
     averageKcalPerDay:
       perDay.length > 0 ? perDay.reduce((sum, kcal) => sum + kcal, 0) / perDay.length : null,
-    grams,
+    averageGramsPerDay:
+      days.length > 0
+        ? {
+            carbs: grams.carbs / days.length,
+            fat: grams.fat / days.length,
+            protein: grams.protein / days.length,
+          }
+        : { ...EMPTY_GRAMS },
   }
 }
 
