@@ -1233,7 +1233,55 @@ code {
   margin: 0;
   padding: 0;
   display: grid;
+  gap: 16px;
+}
+
+.exercise-day-group {
+  /* No card styling on the group itself — the cards inside carry that. */
+}
+
+.exercise-day-summary {
+  display: flex;
+  align-items: baseline;
   gap: 12px;
+  padding: 6px 2px 8px;
+  cursor: pointer;
+  list-style: none;
+  /* Hide the default disclosure triangle; we rely on the browser's built-in
+     triangle which appears via ::marker, kept intentionally for accessibility. */
+}
+
+.exercise-day-summary::-webkit-details-marker {
+  display: none;
+}
+
+.exercise-day-summary::before {
+  content: '▶';
+  font-size: 0.65rem;
+  color: var(--muted);
+  transition: transform 0.15s;
+  flex-shrink: 0;
+}
+
+details[open] > .exercise-day-summary::before {
+  transform: rotate(90deg);
+}
+
+.exercise-day-label {
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+.exercise-day-meta {
+  font-size: 0.8rem;
+}
+
+.exercise-day-sessions {
+  list-style: none;
+  margin: 0;
+  padding: 0 0 0 16px;
+  display: grid;
+  gap: 10px;
 }
 
 .exercise-head {

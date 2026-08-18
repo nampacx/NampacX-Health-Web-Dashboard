@@ -192,6 +192,14 @@ export function parseExerciseRecord(record: HealthRecord): ExerciseSession {
   }
 }
 
+export interface ExerciseDayGroup {
+  /** `2026-08-17` in the recording zone. */
+  dateKey: string
+  /** Midnight of that day, as a UTC-faced wall clock for formatting. */
+  day: Date
+  sessions: ExerciseSession[]
+}
+
 /** The exercise records, parsed and sorted newest-first. */
 export function exerciseSessions(records: HealthRecord[]): ExerciseSession[] {
   return records
@@ -312,4 +320,30 @@ export function exerciseDailyTotals(sessions: ExerciseSession[]): ExerciseDayTot
       (a, b) => b.durationMs - a.durationMs || b.sessions - a.sessions || a.label.localeCompare(b.label),
     ),
   }))
+}
+
+/**
+ * Groups sessions (newest-first) into per-day buckets, preserving order.
+ *
+ * The day key is derived from the session's own recording zone, so the same
+ * midnight rule as `exerciseDailyTotals` applies.
+ */
+export function groupSessionsByDay(sessions: ExerciseSession[]): ExerciseDayGroup[] {
+  const byDate = new Map<string, ExerciseDayGroup>()
+  // Preserve insertion order (newest first) while grouping.
+  for (const session of sessions) {
+    if (!session.start) continue
+    const dateKey = localDateKey(session.start, session.utcOffsetSeconds)
+    const current = byDate.get(dateKey)
+    if (current) {
+      current.sessions.push(session)
+    } else {
+      byDate.set(dateKey, {
+        dateKey,
+        day: dateFromKey(dateKey),
+        sessions: [session],
+      })
+    }
+  }
+  return [...byDate.values()]
 }
