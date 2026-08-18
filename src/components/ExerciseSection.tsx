@@ -1,9 +1,9 @@
 import { useMemo } from 'react'
-import { exerciseDailyTotals, exerciseTotals } from '../api/google/exercise'
+import { exerciseDailyTotals, exerciseTotals, groupSessionsByDay } from '../api/google/exercise'
 import { formatDuration } from '../api/google/sleep'
 import { useGoogleData } from '../state/googleData'
 import ExerciseBarChart from '../charts/ExerciseBarChart'
-import ExerciseCard from './ExerciseCard'
+import ExerciseDayGroup from './ExerciseDayGroup'
 
 const whole = new Intl.NumberFormat(undefined, { maximumFractionDigits: 0 })
 
@@ -12,6 +12,7 @@ export default function ExerciseSection() {
 
   const totals = useMemo(() => exerciseTotals(sessions), [sessions])
   const dailyTotals = useMemo(() => exerciseDailyTotals(sessions), [sessions])
+  const dayGroups = useMemo(() => groupSessionsByDay(sessions), [sessions])
 
   const exerciseSelected = controls.selectedIds.includes('exercise')
 
@@ -78,8 +79,8 @@ export default function ExerciseSection() {
         </section>
       ) : (
         <ul className="exercise-list">
-          {sessions.map((session) => (
-            <ExerciseCard key={session.key} session={session} />
+          {dayGroups.map((group) => (
+            <ExerciseDayGroup key={group.dateKey} group={group} />
           ))}
         </ul>
       )}

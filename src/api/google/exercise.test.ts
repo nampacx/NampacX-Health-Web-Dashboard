@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { exerciseDailyTotals, exerciseSessions, exerciseTotals, humanizeExerciseType } from './exercise'
+import { exerciseDailyTotals, exerciseSessions, exerciseTotals, groupSessionsByDay, humanizeExerciseType } from './exercise'
 import { normalizeDataPoint } from './normalize'
 import type { DataTypeDef, HealthRecord, RawDataPoint } from './types'
 
@@ -398,5 +398,72 @@ describe('humanizeExerciseType', () => {
     expect(humanizeExerciseType('HIGH_INTENSITY_INTERVAL_TRAINING')).toBe(
       'High intensity interval training',
     )
+  })
+})
+
+describe('groupSessionsByDay', () => {
+  it('puts sessions on the same day into one group', () => {
+    const sessions = exerciseSessions([
+      record(
+        point({
+          interval: {
+            startTime: '2026-08-19T06:00:00Z',
+            startUtcOffset: '0s',
+            endTime: '2026-08-19T06:20:00Z',
+          },
+        }, 'a'),
+      ),
+      record(
+        point({
+          interval: {
+            startTime: '2026-08-19T18:00:00Z',
+            startUtcOffset: '0s',
+            endTime: '2026-08-19T18:30:00Z',
+          },
+        }, 'b'),
+      ),
+    ])
+
+    const groups = groupSessionsByDay(sessions)
+    expect(groups).toHaveLength(1)
+    expect(groups[0].dateKey).toBe('2026-08-19')
+    expect(groups[0].sessions).toHaveLength(2)
+  })
+
+  it('puts sessions on different days into separate groups, newest first', () => {
+    const sessions = exerciseSessions([
+      record(
+        point({
+          interval: {
+            startTime: '2026-08-17T06:00:00Z',
+            startUtcOffset: '0s',
+            endTime: '2026-08-17T06:30:00Z',
+          },
+        }, 'a'),
+      ),
+      record(
+        point({
+          interval: {
+            startTime: '2026-08-18T07:00:00Z',
+            startUtcOffset: '0s',
+            endTime: '2026-08-18T07:30:00Z',
+          },
+        }, 'b'),
+      ),
+    ])
+
+    const groups = groupSessionsByDay(sessions)
+    expect(groups).toHaveLength(2)
+    expect(groups[0].dateKey).toBe('2026-08-18')
+    expect(groups[1].dateKey).toBe('2026-08-17')
+  })
+
+  it('skips sessions with no start time', () => {
+    const sessions = exerciseSessions([
+      record(point({ interval: { endTime: '2026-08-18T06:10:00Z' } })),
+    ])
+
+    const groups = groupSessionsByDay(sessions)
+    expect(groups).toHaveLength(0)
   })
 })
