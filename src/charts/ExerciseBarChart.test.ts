@@ -22,9 +22,9 @@ const days: ExerciseDayTotal[] = [
 ]
 
 describe('ExerciseBarChart', () => {
-  it('renders the summary panel even before hover and defaults it to the latest day', () => {
+  it('renders the detail panel even before hover and defaults it to the latest day', () => {
     const markup = renderToStaticMarkup(createElement(ExerciseBarChart, { days }))
-    expect(markup).toContain('class="chart-tooltip exercise-day-tooltip"')
+    expect(markup).toContain('class="exercise-day-detail"')
     expect(markup).toContain('17 min total')
     expect(markup).toContain('Cardio workout')
   })
