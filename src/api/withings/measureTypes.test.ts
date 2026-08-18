@@ -2,11 +2,15 @@ import { describe, expect, it } from 'vitest'
 import {
   BODY_COMPOSITION_TYPES,
   CARD_MEASURE_TYPES,
+  FAT_MASS_TYPE,
   cardMeasures,
   formatDelta,
   formatMeasureValue,
+  MUSCLE_MASS_TYPE,
   measureLabel,
   measureSortKey,
+  FAT_RATIO_TYPE,
+  WEIGHT_TYPE,
 } from './measureTypes'
 import { normalizeMeasureGroup } from './normalize'
 import type { RawMeasureGroup } from './types'
@@ -45,6 +49,15 @@ describe('measureSortKey', () => {
   it('sorts unknown types after every known one', () => {
     const maxKnown = Math.max(measureSortKey(1), measureSortKey(168))
     expect(measureSortKey(9999)).toBeGreaterThan(maxKnown)
+  })
+})
+
+describe('chart type constants', () => {
+  it('point to the intended charted measures', () => {
+    expect(WEIGHT_TYPE).toBe(1)
+    expect(FAT_RATIO_TYPE).toBe(6)
+    expect(MUSCLE_MASS_TYPE).toBe(76)
+    expect(FAT_MASS_TYPE).toBe(8)
   })
 })
 

@@ -1,7 +1,9 @@
 import { useMemo } from 'react'
 import {
+  FAT_MASS_TYPE,
   FAT_RATIO_TYPE,
   MEASURE_TYPES_BY_TYPE,
+  MUSCLE_MASS_TYPE,
   WEIGHT_TYPE,
 } from '../api/withings/measureTypes'
 import { toSeries } from '../api/withings/series'
@@ -39,6 +41,8 @@ export default function WithingsSection() {
 
   const weight = useMemo(() => toSeries(groups, WEIGHT_TYPE), [groups])
   const fatRatio = useMemo(() => toSeries(groups, FAT_RATIO_TYPE), [groups])
+  const muscleMass = useMemo(() => toSeries(groups, MUSCLE_MASS_TYPE), [groups])
+  const fatMass = useMemo(() => toSeries(groups, FAT_MASS_TYPE), [groups])
 
   return (
     <>
@@ -88,8 +92,8 @@ export default function WithingsSection() {
             aria-labelledby={tabButtonId('withings', 'charts')}
             hidden={activeTab !== 'charts'}
           >
-            {/* Two charts rather than one with two y-scales: kg and % share no
-                scale, and overlaying them would invent a correlation. */}
+            {/* Separate charts rather than one with multiple y-scales: kg and %
+                share no scale, and overlaying them would invent a correlation. */}
             <div className="charts">
               <LineChart
                 {...chartMeta(WEIGHT_TYPE)}
@@ -101,6 +105,18 @@ export default function WithingsSection() {
                 {...chartMeta(FAT_RATIO_TYPE)}
                 colorVar="--series-fat"
                 points={fatRatio}
+                loading={loading}
+              />
+              <LineChart
+                {...chartMeta(MUSCLE_MASS_TYPE)}
+                colorVar="--series-muscle"
+                points={muscleMass}
+                loading={loading}
+              />
+              <LineChart
+                {...chartMeta(FAT_MASS_TYPE)}
+                colorVar="--series-fat-mass"
+                points={fatMass}
                 loading={loading}
               />
             </div>
