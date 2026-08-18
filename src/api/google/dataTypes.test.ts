@@ -3,6 +3,7 @@ import {
   DATA_TYPES,
   DATA_TYPES_BY_ID,
   DEFAULT_SELECTED_IDS,
+  SLEEP_METRIC_IDS,
   ENDPOINT_SCOPES,
   REQUESTED_SCOPES,
   UNREADABLE_SCOPES,
@@ -18,6 +19,40 @@ describe('DATA_TYPES', () => {
     for (const id of DEFAULT_SELECTED_IDS) {
       expect(DATA_TYPES_BY_ID.get(id), id).toBeDefined()
     }
+  })
+})
+
+describe('DEFAULT_SELECTED_IDS', () => {
+  // One type per sub-tab that is built around one. Dropping any of these opens
+  // the app on an empty view with a "load it" button.
+  it('covers the data type each sub-tab is built around', () => {
+    expect(DEFAULT_SELECTED_IDS).toContain('sleep')
+    expect(DEFAULT_SELECTED_IDS).toContain('exercise')
+    expect(DEFAULT_SELECTED_IDS).toContain('nutrition-log')
+  })
+
+  /**
+   * These three render no rows of their own, so they look like clutter in the
+   * picker and are the obvious thing to remove when trimming the defaults.
+   * Removing them blanks the HRV, resting heart rate and respiratory rate on
+   * every sleep card -- which reads as missing data, not as a setting.
+   */
+  it('keeps the metrics the sleep view reads, invisible though they are', () => {
+    for (const id of SLEEP_METRIC_IDS) {
+      expect(DEFAULT_SELECTED_IDS, id).toContain(id)
+    }
+  })
+
+  it('asks for nothing twice', () => {
+    expect(new Set(DEFAULT_SELECTED_IDS).size).toBe(DEFAULT_SELECTED_IDS.length)
+  })
+
+  // Two of the three rollup-only types used to sit here and were the source of
+  // the errors the dashboard opened with. They read fine now, but they belong
+  // in the All activity list rather than in a first-run fetch.
+  it('is limited to types a sub-tab actually renders', () => {
+    expect(DEFAULT_SELECTED_IDS).not.toContain('floors')
+    expect(DEFAULT_SELECTED_IDS).not.toContain('total-calories')
   })
 })
 

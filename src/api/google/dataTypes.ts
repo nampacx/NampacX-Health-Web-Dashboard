@@ -121,21 +121,27 @@ export const SLEEP_METRIC_IDS = [
 ]
 
 /**
- * Loaded on first sign-in: the activity and sleep types, minus the niche ones
- * (VO2 max variants, swim lengths, altitude) that would mostly add empty rows,
- * plus the sleep-metric types above — without them the sleep view renders
- * stage timelines with every HRV and heart-rate row blank.
+ * Loaded on first sign-in: **one type per sub-tab that has one**, plus the
+ * overnight metrics the sleep view reads.
+ *
+ * This used to be the whole activity block — steps, distance, floors, the
+ * calorie and active-minute types. Those are aggregate daily counters that only
+ * ever landed in the All activity list; they cost a request each on every
+ * control change to fill a list nobody opened first. The three that remain are
+ * the ones a sub-tab is actually built around.
+ *
+ * `SLEEP_METRIC_IDS` is the reason this list is longer than the picker's badge
+ * suggests it should be: those three render nothing of their own, but without
+ * them every night's HRV, resting heart rate and respiratory rate row is blank.
+ * Removing them looks like tidying and reads as missing data.
+ *
+ * Everything omitted is still one click away in the picker, and the presets
+ * ("All activity + sleep", "Everything") are unchanged.
  */
 export const DEFAULT_SELECTED_IDS = [
-  'steps',
-  'distance',
-  'floors',
-  'active-minutes',
-  'active-zone-minutes',
-  'active-energy-burned',
-  'total-calories',
   'exercise',
   'sleep',
+  'nutrition-log',
   ...SLEEP_METRIC_IDS,
 ]
 
