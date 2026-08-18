@@ -214,6 +214,14 @@ export interface ExerciseDayTotal {
   day: Date
   sessions: number
   durationMs: number
+  byType: ExerciseDayTypeTotal[]
+}
+
+export interface ExerciseDayTypeTotal {
+  typeKey: string
+  label: string
+  sessions: number
+  durationMs: number
 }
 
 function dateFromKey(dateKey: string): Date {
@@ -261,23 +269,47 @@ export function exerciseTotals(sessions: ExerciseSession[]): ExerciseTotals {
  */
 export function exerciseDailyTotals(sessions: ExerciseSession[]): ExerciseDayTotal[] {
   const byDate = new Map<string, ExerciseDayTotal>()
+  const byDateType = new Map<string, Map<string, ExerciseDayTypeTotal>>()
 
   for (const session of [...sessions].sort((a, b) => (a.start?.getTime() ?? 0) - (b.start?.getTime() ?? 0))) {
     if (!session.start) continue
     const dateKey = localDateKey(session.start, session.utcOffsetSeconds)
+    const typeKey = session.exerciseType ?? 'unknown'
+    const typeLabel = session.exerciseType ? humanizeExerciseType(session.exerciseType) : 'Other workouts'
+    const durationMs = session.durationMs ?? 0
     const current = byDate.get(dateKey)
     if (current) {
       current.sessions += 1
-      current.durationMs += session.durationMs ?? 0
-      continue
+      current.durationMs += durationMs
+    } else {
+      byDate.set(dateKey, {
+        dateKey,
+        day: dateFromKey(dateKey),
+        sessions: 1,
+        durationMs,
+        byType: [],
+      })
     }
-    byDate.set(dateKey, {
-      dateKey,
-      day: dateFromKey(dateKey),
-      sessions: 1,
-      durationMs: session.durationMs ?? 0,
-    })
+    const typeTotals = byDateType.get(dateKey) ?? new Map<string, ExerciseDayTypeTotal>()
+    const currentType = typeTotals.get(typeKey)
+    if (currentType) {
+      currentType.sessions += 1
+      currentType.durationMs += durationMs
+    } else {
+      typeTotals.set(typeKey, {
+        typeKey,
+        label: typeLabel,
+        sessions: 1,
+        durationMs,
+      })
+    }
+    byDateType.set(dateKey, typeTotals)
   }
 
-  return [...byDate.values()]
+  return [...byDate.values()].map((day) => ({
+    ...day,
+    byType: [...(byDateType.get(day.dateKey)?.values() ?? [])].sort(
+      (a, b) => b.durationMs - a.durationMs || b.sessions - a.sessions || a.label.localeCompare(b.label),
+    ),
+  }))
 }
