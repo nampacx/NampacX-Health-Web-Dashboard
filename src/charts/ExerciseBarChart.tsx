@@ -70,8 +70,9 @@ export default function ExerciseBarChart({ days }: Props) {
       }))
   }, [days])
   const colorByType = new Map(typeLegend.map((entry) => [entry.typeKey, entry.color]))
-  const active = activeDay === null ? null : days[activeDay]
-  const activeX = activeDay === null ? null : PAD_X + activeDay * (BAR_WIDTH + BAR_GAP) + BAR_WIDTH / 2
+  const summaryDayIndex = activeDay ?? days.length - 1
+  const summaryDay = days[summaryDayIndex]
+  const summaryX = PAD_X + summaryDayIndex * (BAR_WIDTH + BAR_GAP) + BAR_WIDTH / 2
 
   return (
     <figure className="chart">
@@ -133,9 +134,6 @@ export default function ExerciseBarChart({ days }: Props) {
                   )
                 })}
                 <rect className="exercise-day-hitbox" x={x} y={y} width={BAR_WIDTH} height={Math.max(16, barHeight)} />
-                <title>
-                  {`${longDate.format(day.day)}: ${formatDuration(day.durationMs)} across ${day.sessions} ${day.sessions === 1 ? 'workout' : 'workouts'} — ${day.byType.map((type) => `${type.label}: ${formatDuration(type.durationMs)}`).join(', ')}`}
-                </title>
                 {labels.includes(index) && (
                   <text
                     className="chart-tick"
@@ -151,32 +149,30 @@ export default function ExerciseBarChart({ days }: Props) {
           })}
         </svg>
 
-        {active && activeX !== null && (
-          <div
-            className="chart-tooltip exercise-day-tooltip"
-            style={{
-              left: `${Math.min(Math.max(activeX, TOOLTIP_X_PAD), Math.max(TOOLTIP_X_PAD, width - TOOLTIP_X_PAD))}px`,
-              top: `${Math.max(PAD_TOP + 8, PAD_TOP + PLOT_HEIGHT - (active.durationMs / Math.max(1, maxDuration)) * PLOT_HEIGHT)}px`,
-            }}
-            role="status"
-          >
-            <strong>{longDate.format(active.day)}</strong>
-            <span className="muted">{formatDuration(active.durationMs)} total</span>
-            <table>
-              <tbody>
-                {active.byType.map((type) => (
-                  <tr key={type.typeKey}>
-                    <td>
-                      <span className="exercise-day-legend-swatch" style={{ background: colorByType.get(type.typeKey) }} />
-                      {type.label}
-                    </td>
-                    <td className="chart-table-value">{formatDuration(type.durationMs)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+        <div
+          className="chart-tooltip exercise-day-tooltip"
+          style={{
+            left: `${Math.min(Math.max(summaryX, TOOLTIP_X_PAD), Math.max(TOOLTIP_X_PAD, width - TOOLTIP_X_PAD))}px`,
+            top: `${Math.max(PAD_TOP + 8, PAD_TOP + PLOT_HEIGHT - (summaryDay.durationMs / Math.max(1, maxDuration)) * PLOT_HEIGHT)}px`,
+          }}
+          role="status"
+        >
+          <strong>{longDate.format(summaryDay.day)}</strong>
+          <span className="muted">{formatDuration(summaryDay.durationMs)} total</span>
+          <table>
+            <tbody>
+              {summaryDay.byType.map((type) => (
+                <tr key={type.typeKey}>
+                  <td>
+                    <span className="exercise-day-legend-swatch" style={{ background: colorByType.get(type.typeKey) }} />
+                    {type.label}
+                  </td>
+                  <td className="chart-table-value">{formatDuration(type.durationMs)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {typeLegend.length > 0 && (
