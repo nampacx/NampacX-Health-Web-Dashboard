@@ -7,6 +7,7 @@ const dataType: DataTypeDef = {
   id: 'steps',
   label: 'Steps',
   category: 'Activity',
+  recordType: 'interval',
   scope: 'activity_and_fitness.readonly',
 }
 

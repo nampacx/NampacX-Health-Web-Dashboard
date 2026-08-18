@@ -17,6 +17,7 @@ const SLEEP_TYPE: DataTypeDef = {
   id: 'sleep',
   label: 'Sleep',
   category: 'Sleep',
+  recordType: 'session',
   scope: 'sleep.readonly',
 }
 

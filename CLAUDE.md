@@ -108,9 +108,39 @@ Data flows **auth → fetch → normalize → group → render**.
 
 - **Fetch** (`src/api/google/healthApi.ts`). `fetchLatestRecords` fans out across selected data types with
   bounded concurrency (`mapWithConcurrency`, limit 6). A per-type failure becomes a `FetchOutcome`
-  rather than failing the whole load. The time filter is applied **optimistically**: if the API
-  rejects `interval.civil_start_time` with a 400 for a type lacking that field, the request is
-  retried unfiltered so the type still contributes rows.
+  rather than failing the whole load.
+
+  `listDataPoints` **follows `nextPageToken`** until it has `pageSize` records, so that control is
+  rows-per-data-type, not a request's page size. This matters most for the two types people want
+  history for: the API caps a single page at **25 for `sleep` and `exercise`** (10000 for the rest)
+  however much more is asked for, so before paging there was no way to see a 26th night.
+
+- **The time filter is not one expression** (`src/api/google/dataPointFilter.ts`). `dataPoints.list`
+  picks the filterable time field by the data type's **record type**, and using the wrong one is not
+  a soft failure — the API 400s, the fetch falls back to unfiltered, and the type quietly returns
+  its newest N rows as though no range had been asked for. That silent degradation is why
+  `DataTypeDef` carries `recordType`, taken from the data-type table's "Record type" column; it is
+  not inferable from the payload.
+
+  | Record type | Field |
+  | --- | --- |
+  | Interval, Session | `{type}.interval.civil_start_time` |
+  | Sample | `{type}.sample_time.civil_time` |
+  | Daily | `{type}.date` — **date literal only**, a time part is rejected |
+  | Food | nothing filterable |
+
+  Two per-type exceptions the record type cannot express: **sleep filters on the interval *end***
+  (`sleep.interval.civil_end_time` — the session start-time pattern documents itself as excluding
+  sleep, and end-time is the right reading anyway, since a night belongs to the morning it ended on),
+  and **ECG takes a physical RFC-3339 timestamp** with `>=` only.
+
+  **The spelling of the data type in a filter is genuinely unsettled.** Every example in the
+  reference is a single-word type (`steps`, `weight`, `sleep`, `exercise`) where camelCase and
+  snake_case are identical — except the one multi-word example, `dailyHeartRateVariability.date`,
+  which is camelCase, in a grammar whose *field* names are plainly snake_case. Rather than bet the
+  time range on that, `healthApi.ts` tries camelCase, retries snake_case on a 400, and **remembers
+  which one worked** in a module-level `knownDialect` for the rest of the session. Only after both
+  spellings fail does it fall back to unfiltered. `resetFilterDialect()` exists for tests.
 
 - **Normalize** (`src/api/google/normalize.ts`) — the trickiest file. Google does not document every data
   type's payload shape, so this works **structurally, not per-type**: locate the payload object,

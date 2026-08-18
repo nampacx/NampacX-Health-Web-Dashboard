@@ -1,3 +1,4 @@
+import { timeFilter, type FilterDialect } from './dataPointFilter'
 import type { DataTypeDef, FetchOutcome, HealthRecord, ListDataPointsResponse } from './types'
 import { normalizeDataPoint } from './normalize'
 
@@ -15,20 +16,6 @@ export class HealthApiError extends Error {
     super(message)
     this.name = 'HealthApiError'
   }
-}
-
-/** `body-fat` -> `body_fat`, which is what the filter grammar expects. */
-function toSnakeCase(dataTypeId: string): string {
-  return dataTypeId.replace(/-/g, '_')
-}
-
-/** The filter grammar wants a civil (offset-free) timestamp. */
-function toCivilString(date: Date): string {
-  const pad = (n: number) => String(n).padStart(2, '0')
-  return (
-    `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}` +
-    `T${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`
-  )
 }
 
 /**
@@ -96,40 +83,121 @@ async function getDataPoints(
 
 export interface ListOptions {
   accessToken: string
+  /**
+   * How many records to return per data type. No longer a single request's page
+   * size: pages are followed until this many have been collected, so it can
+   * exceed the API's per-page cap (25 for `sleep` and `exercise`, 10000 for the
+   * rest). Pass 0 to skip the time filter entirely.
+   */
   pageSize: number
   /** Only look this far back. Pass 0 to skip the time filter entirely. */
   lookbackDays: number
 }
 
 /**
- * Lists recent data points for one data type.
- *
- * The time filter is applied optimistically: not every data type exposes an
- * `interval.civil_start_time` field, and an unknown field is rejected with a
- * 400. When that happens the call is retried unfiltered so the data type still
- * contributes rows instead of dropping out of the dashboard.
+ * A runaway-loop backstop, not a real limit. `pageSize` bounds the collection;
+ * this only matters if the API ever returns a `nextPageToken` alongside an empty
+ * page, which would otherwise spin forever.
  */
-export async function listDataPoints(
+const MAX_PAGES = 40
+
+/**
+ * Which spelling of the data type the filter grammar wants, once we know.
+ *
+ * Module-level rather than per-call because it is a property of the API, not of
+ * a request: the first filtered fetch of the session pays at most one extra
+ * round trip to find out, and every later one goes straight to the right form.
+ * See `FilterDialect` in `dataPointFilter.ts` for why this is not simply known.
+ */
+let knownDialect: FilterDialect | null = null
+
+function dialectsToTry(): FilterDialect[] {
+  const all: FilterDialect[] = ['camel', 'snake']
+  if (!knownDialect) return all
+  return [knownDialect, ...all.filter((dialect) => dialect !== knownDialect)]
+}
+
+/** Exposed for tests, which need each case to start from no knowledge. */
+export function resetFilterDialect(): void {
+  knownDialect = null
+}
+
+/**
+ * Fetches the first page, settling on a filter expression as it goes.
+ *
+ * The filter is applied optimistically and degrades in two steps. A rejected
+ * *spelling* of the data type is retried in the other spelling; a rejected
+ * *field* — or a data type with no time field at all — falls back to an
+ * unfiltered request, so the type still contributes rows rather than dropping
+ * out of the dashboard. The params that worked are returned so the remaining
+ * pages reuse them verbatim.
+ */
+async function fetchFirstPage(
   dataType: DataTypeDef,
   { accessToken, pageSize, lookbackDays }: ListOptions,
-): Promise<ListDataPointsResponse> {
+): Promise<{ response: ListDataPointsResponse; params: URLSearchParams }> {
   const baseParams = { page_size: String(pageSize) }
 
   if (lookbackDays > 0) {
     const since = new Date(Date.now() - lookbackDays * 24 * 60 * 60 * 1000)
-    const filtered = new URLSearchParams({
-      ...baseParams,
-      filter: `${toSnakeCase(dataType.id)}.interval.civil_start_time >= "${toCivilString(since)}"`,
-    })
-    try {
-      return await getDataPoints(dataType.id, accessToken, filtered)
-    } catch (err) {
-      if (!(err instanceof HealthApiError) || err.status !== 400) throw err
-      // Fall through to the unfiltered request below.
+
+    for (const dialect of dialectsToTry()) {
+      const filter = timeFilter(dataType, since, dialect)
+      // Null means the data type has no filterable time field; no spelling of it
+      // will help, so stop trying and go unfiltered.
+      if (filter === null) break
+
+      const params = new URLSearchParams({ ...baseParams, filter })
+      try {
+        const response = await getDataPoints(dataType.id, accessToken, params)
+        knownDialect = dialect
+        return { response, params }
+      } catch (err) {
+        if (!(err instanceof HealthApiError) || err.status !== 400) throw err
+        // Try the other spelling, then fall through to unfiltered below.
+      }
     }
   }
 
-  return getDataPoints(dataType.id, accessToken, new URLSearchParams(baseParams))
+  const params = new URLSearchParams(baseParams)
+  return { response: await getDataPoints(dataType.id, accessToken, params), params }
+}
+
+/**
+ * Lists recent data points for one data type, following `nextPageToken` until
+ * `pageSize` records have been collected or the data runs out.
+ *
+ * Paging is what lifts the ceiling on sleep and exercise, whose per-request page
+ * size the API caps at 25 however much more is asked for.
+ */
+export async function listDataPoints(
+  dataType: DataTypeDef,
+  options: ListOptions,
+): Promise<ListDataPointsResponse> {
+  const { response: first, params } = await fetchFirstPage(dataType, options)
+
+  const collected = [...(first.dataPoints ?? [])]
+  let pageToken = first.nextPageToken
+
+  for (let page = 1; page < MAX_PAGES; page++) {
+    if (!pageToken || collected.length >= options.pageSize) break
+
+    const next = new URLSearchParams(params)
+    next.set('page_token', pageToken)
+    const response = await getDataPoints(dataType.id, options.accessToken, next)
+
+    const batch = response.dataPoints ?? []
+    // An empty page with a token would otherwise loop to MAX_PAGES for nothing.
+    if (batch.length === 0) break
+    collected.push(...batch)
+    pageToken = response.nextPageToken
+  }
+
+  return {
+    // The last page can overshoot, since the API decides how much it returns.
+    dataPoints: collected.slice(0, options.pageSize),
+    nextPageToken: pageToken,
+  }
 }
 
 /** Runs `worker` over `items` with a bounded number of in-flight requests. */
