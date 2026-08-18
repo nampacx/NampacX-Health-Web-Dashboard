@@ -245,6 +245,38 @@ Data flows **auth → fetch → normalize → group → render**.
   session. The blob-download plumbing lives in `ExerciseCard.tsx`, not in the API module, so that
   module stays DOM-free and testable — **the suite runs without jsdom.**
 
+- **Nutrition** (`src/api/google/nutrition.ts`). The third typed parser, and it earns it the same
+  way sleep does: **`protein` exists only as an entry in the `nutrients[]` array**, and `flatten()`
+  renders an array of objects as `"7 entries"`, so no amount of `summaryKeys` can reach the one
+  number the view is about. Carbs and fat *are* top-level (`totalCarbohydrate`, `totalFat`, both
+  `WeightQuantity` with a `grams`), and energy is an `EnergyQuantity` with a `kcal`.
+
+  Three rules that are easy to get wrong:
+
+  - **Never assemble fat from the nutrient array.** The `Nutrient` enum has no total-fat member —
+    it breaks fat into `SATURATED_FAT`, `TRANS_FAT`, `MONOUNSATURATED_FAT` and friends — so summing
+    them under-counts whatever a food did not break out. Fat is `totalFat` or nothing.
+  - **Logged and derived energy are different numbers, and both are shown.** `energy.kcal` is what
+    the food carries; 4/4/9 over the macros ignores alcohol and fibre and rounds per item, so the
+    two disagree by a few percent on real data. The table's kcal column is derived (it has to add
+    up to its own total); the logged figure sits beside it, and a gap over 5 % is explained on the
+    card rather than reconciled away.
+  - **Days are keyed through `startUtcOffset`**, like `sleep.ts` — a 00:30 snack at +02:00 is
+    `22:30Z` the day before, and keying in UTC files it under the wrong day with nothing looking
+    broken.
+
+  `nutrition-log` is catalogued as `recordType: 'session'`, which **contradicts the data-type
+  table's "Sample"**. The table is describing something other than the filter grammar: `NutritionLog`
+  carries an `interval` (a `SessionTimeInterval`) and no `sample_time` at all, so a
+  `sample_time.civil_time` filter cannot resolve and the time range would silently stop applying.
+
+  The pie is **by energy, not by grams** (`macroShares`). A macro split means the calorie split;
+  fat at 9 kcal/g against 4 would draw a high-fat day as a low-fat one if the slices were weights.
+  Arc maths lives in `src/charts/pieGeometry.ts`, split out like `scale.ts` and `hypnogramScale.ts`
+  so it is testable — **the suite runs without jsdom**, so anything left inside a component is not.
+  The `--macro-*` palette is validated as a 3-slot categorical set against both surfaces, same as
+  the sleep stages.
+
 - **Profile** (`src/api/google/profile.ts`). `users/me/profile`, behind `profile.readonly`. Not a
   data point: its own endpoint, one of it, no observation time, never in a `FetchOutcome` — so it
   gets a typed parser, which does not contradict `normalize.ts`'s structural rule (that exists
@@ -268,7 +300,7 @@ Data flows **auth → fetch → normalize → group → render**.
   page comes from Google sign-in, not from Google Health. The Profile view says so.
 
 - **Render** (`src/components/`). `Dashboard.tsx` owns the Google tab: controls, fetch outcomes,
-  and a **sub-tab bar** (Sleep / Exercise / All activity / Profile, `GOOGLE_TAB_IDS` in
+  and a **sub-tab bar** (Sleep / Exercise / Nutrition / All activity / Profile, `GOOGLE_TAB_IDS` in
   `state/tabs.ts`). It refetches
   when data-type selection / lookback / page size change, but applies the text `query`
   **client-side without refetching**. A `requestId` ref guards against a slow earlier request
