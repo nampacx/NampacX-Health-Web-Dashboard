@@ -7,6 +7,7 @@ const EXERCISE: DataTypeDef = {
   id: 'exercise',
   label: 'Exercise',
   category: 'Activity',
+  recordType: 'session',
   scope: 'activity_and_fitness.readonly',
   summaryKeys: ['displayName', 'exerciseType'],
 }

@@ -10,12 +10,22 @@ export type ReadScope =
   | 'settings.readonly'
   | 'location.readonly'
 
+/**
+ * How the API times a data type, which decides the `filter` field that
+ * `dataPoints.list` will accept for it. Taken from the "Record type" column of
+ * https://developers.google.com/health/data-types — it is not inferable from the
+ * payload, and guessing it means the time range is silently ignored. See
+ * `dataPointFilter.ts`.
+ */
+export type RecordType = 'interval' | 'sample' | 'daily' | 'session' | 'food'
+
 export interface DataTypeDef {
   /** Kebab-case identifier used in the endpoint path, e.g. `body-fat`. */
   id: string
   label: string
   category: string
   scope: ReadScope
+  recordType: RecordType
   /**
    * Field names preferred for the headline value, most interesting first,
    * matched against the last segment of a payload path. Purely a hint: if none

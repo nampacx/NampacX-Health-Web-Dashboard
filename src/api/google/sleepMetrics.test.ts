@@ -9,7 +9,13 @@ import {
 import type { DataTypeDef, HealthRecord } from './types'
 
 function typeDef(id: string): DataTypeDef {
-  return { id, label: id, category: 'Metrics', scope: 'health_metrics_and_measurements.readonly' }
+  return {
+    id,
+    label: id,
+    category: 'Metrics',
+    recordType: 'daily',
+    scope: 'health_metrics_and_measurements.readonly',
+  }
 }
 
 function record(id: string, payload: unknown, timestamp: Date | null = null): HealthRecord {

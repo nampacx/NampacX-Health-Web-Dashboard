@@ -16,7 +16,14 @@ interface Props {
   loading: boolean
 }
 
-const PAGE_SIZE_OPTIONS = [5, 10, 25, 50]
+/**
+ * Rows per data type, not a request's page size — `listDataPoints` follows
+ * `nextPageToken` until it has this many. That is what makes the larger values
+ * meaningful: the API caps a single page at 25 for `sleep` and `exercise`, so
+ * before paging existed anything above 25 was silently truncated for exactly the
+ * two types people most want history for.
+ */
+const PAGE_SIZE_OPTIONS = [5, 10, 25, 50, 100, 200]
 
 const PRESETS: Array<{ label: string; ids: string[] }> = [
   { label: 'Default', ids: DEFAULT_SELECTED_IDS },
