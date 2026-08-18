@@ -149,8 +149,20 @@ function formatDurationSeconds(totalSeconds: number): string {
  * Google Health encodes units in the field name (`caloriesKcal`,
  * `distanceMillimiters`), so the suffix is what gets read here.
  */
+/**
+ * Rollup fields are named `{field}_{aggregation}` — `kcalSum`, `countSum`,
+ * `confidenceMin`. Stripping the aggregation word lets the unit rules below
+ * match the field they were written for, so a rolled-up `kcalSum` still renders
+ * "2,345 kcal" rather than a bare number.
+ */
+const AGGREGATION_SUFFIX = /(Sum|Min|Max|Avg|Mean|Median|Count|First|Last)$/
+
 function formatLeaf(leaf: Leaf): string {
-  const key = leaf.path.split('.').pop() ?? leaf.path
+  const rawKey = leaf.path.split('.').pop() ?? leaf.path
+  // Only strip when something is left to match on: a bare `countSum` must not
+  // become an empty key.
+  const stripped = rawKey.replace(AGGREGATION_SUFFIX, '')
+  const key = stripped.length > 0 ? stripped : rawKey
   const numeric = asNumber(leaf.value)
 
   if (typeof leaf.value === 'string' && /^\d+(\.\d+)?s$/.test(leaf.value)) {
