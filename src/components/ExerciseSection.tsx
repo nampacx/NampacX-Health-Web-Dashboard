@@ -1,7 +1,8 @@
 import { useMemo } from 'react'
-import { exerciseTotals } from '../api/google/exercise'
+import { exerciseDailyTotals, exerciseTotals } from '../api/google/exercise'
 import { formatDuration } from '../api/google/sleep'
 import { useGoogleData } from '../state/googleData'
+import ExerciseBarChart from '../charts/ExerciseBarChart'
 import ExerciseCard from './ExerciseCard'
 
 const whole = new Intl.NumberFormat(undefined, { maximumFractionDigits: 0 })
@@ -10,6 +11,7 @@ export default function ExerciseSection() {
   const { controls, setControls, sessions, loading, loadedAt } = useGoogleData()
 
   const totals = useMemo(() => exerciseTotals(sessions), [sessions])
+  const dailyTotals = useMemo(() => exerciseDailyTotals(sessions), [sessions])
 
   const exerciseSelected = controls.selectedIds.includes('exercise')
 
@@ -39,26 +41,29 @@ export default function ExerciseSection() {
       )}
 
       {sessions.length > 0 && (
-        <div className="exercise-totals">
-          <div className="sleep-stat">
-            <span className="sleep-stat-label">Workouts</span>
-            <span className="sleep-stat-value">{sessions.length}</span>
-          </div>
-          <div className="sleep-stat">
-            <span className="sleep-stat-label">Total time</span>
-            <span className="sleep-stat-value">{formatDuration(totals.durationMs)}</span>
-          </div>
-          {/* Absent rather than zero when nothing reported calories -- a "0 kcal"
-              total would read as a fact instead of a gap. */}
-          {totals.caloriesKcal !== null && (
+        <>
+          <div className="exercise-totals">
             <div className="sleep-stat">
-              <span className="sleep-stat-label">Total energy</span>
-              <span className="sleep-stat-value">
-                {whole.format(totals.caloriesKcal)} kcal
-              </span>
+              <span className="sleep-stat-label">Workouts</span>
+              <span className="sleep-stat-value">{sessions.length}</span>
             </div>
-          )}
-        </div>
+            <div className="sleep-stat">
+              <span className="sleep-stat-label">Total time</span>
+              <span className="sleep-stat-value">{formatDuration(totals.durationMs)}</span>
+            </div>
+            {/* Absent rather than zero when nothing reported calories -- a "0 kcal"
+                total would read as a fact instead of a gap. */}
+            {totals.caloriesKcal !== null && (
+              <div className="sleep-stat">
+                <span className="sleep-stat-label">Total energy</span>
+                <span className="sleep-stat-value">
+                  {whole.format(totals.caloriesKcal)} kcal
+                </span>
+              </div>
+            )}
+          </div>
+          <ExerciseBarChart days={dailyTotals} />
+        </>
       )}
 
       {loading && sessions.length === 0 ? (

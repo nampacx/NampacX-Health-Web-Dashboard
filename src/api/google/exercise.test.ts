@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { exerciseSessions, exerciseTotals, humanizeExerciseType } from './exercise'
+import { exerciseDailyTotals, exerciseSessions, exerciseTotals, humanizeExerciseType } from './exercise'
 import { normalizeDataPoint } from './normalize'
 import type { DataTypeDef, HealthRecord, RawDataPoint } from './types'
 
@@ -265,6 +265,93 @@ describe('exerciseTotals', () => {
 
   it('handles an empty list', () => {
     expect(exerciseTotals([])).toEqual({ sessions: 0, durationMs: 0, caloriesKcal: null })
+  })
+})
+
+describe('exerciseDailyTotals', () => {
+  it('combines multiple workouts logged on the same recording day', () => {
+    const days = exerciseDailyTotals(
+      exerciseSessions([
+        record(
+          point({
+            interval: {
+              startTime: '2026-08-17T06:00:00Z',
+              endTime: '2026-08-17T06:50:00Z',
+            },
+            activeDuration: '3000s',
+          }),
+        ),
+        record(
+          point({
+            interval: {
+              startTime: '2026-08-17T18:00:00Z',
+              endTime: '2026-08-17T18:35:00Z',
+            },
+            activeDuration: '2100s',
+          }),
+        ),
+        record(
+          point({
+            interval: {
+              startTime: '2026-08-18T08:00:00Z',
+              endTime: '2026-08-18T08:20:00Z',
+            },
+          }),
+        ),
+      ]),
+    )
+
+    expect(days).toHaveLength(2)
+    expect(days[0]).toMatchObject({
+      dateKey: '2026-08-17',
+      sessions: 2,
+      durationMs: 5_100_000,
+    })
+    expect(days[1]).toMatchObject({
+      dateKey: '2026-08-18',
+      sessions: 1,
+      durationMs: 1_200_000,
+    })
+  })
+
+  it('groups by the session recording zone rather than raw UTC date', () => {
+    const [day] = exerciseDailyTotals(
+      exerciseSessions([
+        record(
+          point({
+            interval: {
+              startTime: '2026-08-17T22:30:00Z',
+              startUtcOffset: '7200s',
+              endTime: '2026-08-17T23:00:00Z',
+              endUtcOffset: '7200s',
+            },
+            activeDuration: '1800s',
+          }),
+        ),
+      ]),
+    )
+
+    expect(day.dateKey).toBe('2026-08-18')
+    expect(day.day.toISOString()).toBe('2026-08-18T00:00:00.000Z')
+  })
+
+  it('skips a session it cannot place on a day', () => {
+    const days = exerciseDailyTotals(
+      exerciseSessions([
+        record(point({ interval: { endTime: '2026-08-17T06:10:00Z' } })),
+        record(
+          point({
+            interval: {
+              startTime: '2026-08-18T06:00:00Z',
+              endTime: '2026-08-18T06:10:00Z',
+            },
+          }),
+        ),
+      ]),
+    )
+
+    expect(days).toHaveLength(1)
+    expect(days[0].dateKey).toBe('2026-08-18')
   })
 })
 

@@ -18,7 +18,7 @@
 
 import { exerciseDataPointId } from './exerciseTcx'
 import { payloadLeaves, type PayloadLeaf } from './normalize'
-import { parseDurationMs, parseInterval } from './time'
+import { localDateKey, parseDurationMs, parseInterval } from './time'
 import type { HealthRecord, RawDataPoint } from './types'
 
 export interface ExerciseStat extends PayloadLeaf {}
@@ -207,6 +207,21 @@ export interface ExerciseTotals {
   caloriesKcal: number | null
 }
 
+export interface ExerciseDayTotal {
+  /** `2026-08-17` in the recording zone. */
+  dateKey: string
+  /** Midnight of that day, as a UTC-faced wall clock for formatting. */
+  day: Date
+  sessions: number
+  durationMs: number
+}
+
+function dateFromKey(dateKey: string): Date {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateKey)
+  if (!match) return new Date(0)
+  return new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3])))
+}
+
 /**
  * Window totals for the strip above the cards.
  *
@@ -235,4 +250,34 @@ export function exerciseTotals(sessions: ExerciseSession[]): ExerciseTotals {
     durationMs,
     caloriesKcal: sawCalories ? calories : null,
   }
+}
+
+/**
+ * Daily workout totals for the summary chart.
+ *
+ * A day is the session's own recording day, through `startUtcOffset`, not the
+ * viewer's current time zone. Multiple workouts on the same day collapse into
+ * one bar by summing the same duration the cards show.
+ */
+export function exerciseDailyTotals(sessions: ExerciseSession[]): ExerciseDayTotal[] {
+  const byDate = new Map<string, ExerciseDayTotal>()
+
+  for (const session of [...sessions].sort((a, b) => (a.start?.getTime() ?? 0) - (b.start?.getTime() ?? 0))) {
+    if (!session.start) continue
+    const dateKey = localDateKey(session.start, session.utcOffsetSeconds)
+    const current = byDate.get(dateKey)
+    if (current) {
+      current.sessions += 1
+      current.durationMs += session.durationMs ?? 0
+      continue
+    }
+    byDate.set(dateKey, {
+      dateKey,
+      day: dateFromKey(dateKey),
+      sessions: 1,
+      durationMs: session.durationMs ?? 0,
+    })
+  }
+
+  return [...byDate.values()]
 }
