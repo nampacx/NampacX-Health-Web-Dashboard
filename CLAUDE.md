@@ -82,6 +82,30 @@ Data flows **auth → fetch → normalize → group → render**.
   read scopes up front so consent happens once; `DEFAULT_SELECTED_IDS` is what loads on first
   sign-in.
 
+  **A `.readonly` scope in the Cloud console does not mean the data is readable.** The console
+  offers `reproductive_health.readonly`, `logged_symptoms.readonly` and `mindfulness.readonly`,
+  which reads as though menstrual-period, ovulation-test, symptoms and moods had become listable.
+  They are not. Those four data types document exactly three operations — `create`, `update`,
+  `batchDelete` — and `dataPoints.list` accepts a **closed set** of seven scopes:
+  `activity_and_fitness`, `health_metrics_and_measurements`, `location`, `nutrition`, `sleep`,
+  `irn`, `ecg`. Nothing else is on it. Granting those three unlocks no readable endpoint anywhere in
+  v4, so `UNREADABLE_SCOPES` names them and `REQUESTED_SCOPES` deliberately leaves them out —
+  requesting them would widen the consent screen, with the most sensitive wording on it, for zero
+  rows. **Check `dataPoints.list`'s scope list, not the console, before adding a data type.**
+
+  Two scopes gate an *endpoint* rather than a data type, so no `DataTypeDef` carries them and
+  `ENDPOINT_SCOPES` has to name them explicitly or they silently go unrequested:
+  `location.readonly` (the TCX route export) and `profile.readonly` (`users/me/profile`).
+
+  Left unbuilt on purpose: `settings.readonly`, which really does read — `users/me/settings` and
+  `users/me/pairedDevices` (device type, battery level, last sync time). Nothing renders it yet.
+
+  **Three catalogued types do not support `list`.** `floors` and `calories-in-heart-rate-zone` are
+  `rollup`/`dailyRollup` only, and `total-calories` likewise — yet `floors` and `total-calories` sit
+  in `DEFAULT_SELECTED_IDS`, so they are expected to come back as per-type errors in
+  `OutcomeSummary` rather than rows. Fixing that means implementing `dataPoints.rollUp`, which is a
+  separate endpoint with a separate response shape, not a tweak to the catalog.
+
 - **Fetch** (`src/api/google/healthApi.ts`). `fetchLatestRecords` fans out across selected data types with
   bounded concurrency (`mapWithConcurrency`, limit 6). A per-type failure becomes a `FetchOutcome`
   rather than failing the whole load. The time filter is applied **optimistically**: if the API
@@ -166,8 +190,56 @@ Data flows **auth → fetch → normalize → group → render**.
   which feeds it — has no field for them either. Search results conflating the two are the usual
   source of confusion. The Exercise view says so on the page.
 
+- **GPS routes** (`src/api/google/exerciseTcx.ts`). **There is no `location` data type and no
+  coordinate anywhere in the data point JSON.** The entire `DataPoint` union contains two
+  location-adjacent fields, both in `exercise.metadata`: `hasGps` (a boolean) and
+  `poolLengthMillimeters`. Granting `location.readonly` does not add a route array to the exercise
+  payload and does not make a new data type listable — it unlocks exactly one custom method,
+  `dataPoints.exportExerciseTcx`, which returns the track as a TCX file per session. So a route can
+  be handed to the user, but it cannot be flattened into a stat chip, and a map would mean parsing
+  XML. Don't go looking for a lat/lon field.
+
+  Three details in that method's contract:
+
+  - **`?alt=media` is mandatory.** Without it the method returns JSON wrapping a `tcxData` string,
+    which for a proto `bytes` field means base64 to undo.
+  - **It needs two scopes.** The reference lists them as "one of" and then contradicts itself in a
+    note: the call wants an `activity_and_fitness` scope **and** a `location` one. A 403 here is a
+    scope problem, not a missing route, and the error message says so.
+  - The `:exportExerciseTcx` colon is gRPC-transcoding syntax — percent-encoding it 404s, so only
+    the data point id is passed through `encodeURIComponent`.
+
+  `ExerciseSession` carries `hasGps` and `dataPointId`; the card offers the download only when it has
+  both, since a data point that arrived without a resource name has no server-side id to export.
+  `hasGps` is filtered out of the stat grid because as a stat it reads "Has gps: No" on every indoor
+  session. The blob-download plumbing lives in `ExerciseCard.tsx`, not in the API module, so that
+  module stays DOM-free and testable — **the suite runs without jsdom.**
+
+- **Profile** (`src/api/google/profile.ts`). `users/me/profile`, behind `profile.readonly`. Not a
+  data point: its own endpoint, one of it, no observation time, never in a `FetchOutcome` — so it
+  gets a typed parser, which does not contradict `normalize.ts`'s structural rule (that exists
+  because data-type payloads are undocumented and grow fields; this is five documented ones).
+  Fetched once per sign-in in `googleData.tsx`, in its own effect — it depends on the token and
+  nothing else, so sharing the records effect would refetch it on every control change.
+
+  Two field-level traps:
+
+  - **The stride lengths are gated on a second scope.** `profile.readonly` returns the resource, but
+    each `*StrideLengthMm` field *additionally* requires an `activity_and_fitness` scope. A token
+    holding only `profile.readonly` gets a profile with the strides silently **absent** — not a 403 —
+    so missing strides parse to `null` rather than throwing.
+  - **`membershipStartDate` is a civil date, not an instant.** It is `{year, month, day}` with no
+    zone, so `new Date(y, m-1, d)` renders the day before anywhere west of UTC. `formatCivilDate`
+    builds it with `Date.UTC` and pins the formatter to `timeZone: 'UTC'` — the same trick `time.ts`
+    uses for session wall clocks.
+
+  **No name, birth date, sex, height or weight.** The resource exposes an *age* Google derives from
+  the birth date, never the date. Height and weight are separate data types; the account name on the
+  page comes from Google sign-in, not from Google Health. The Profile view says so.
+
 - **Render** (`src/components/`). `Dashboard.tsx` owns the Google tab: controls, fetch outcomes,
-  and a **sub-tab bar** (Sleep / Exercise / All activity, `GOOGLE_TAB_IDS` in `state/tabs.ts`). It refetches
+  and a **sub-tab bar** (Sleep / Exercise / All activity / Profile, `GOOGLE_TAB_IDS` in
+  `state/tabs.ts`). It refetches
   when data-type selection / lookback / page size change, but applies the text `query`
   **client-side without refetching**. A `requestId` ref guards against a slow earlier request
   overwriting a newer result.
@@ -176,7 +248,9 @@ Data flows **auth → fetch → normalize → group → render**.
 
   - **Controls sit above the sub-tabs, not inside one.** The data-type selection and time range
     decide what *both* views have to work with; nesting them under one sub-tab would imply they
-    only apply there.
+    only apply there. Profile is the one exception and the only sub-tab without a count badge: it is
+    a single object at its own endpoint with no time range to apply, which the view states on the
+    page rather than leaving to be inferred from widgets that visibly do nothing.
   - **`Tabs.tsx` is generic over the tab id** and takes an `idPrefix`. That prefix is load-bearing
     now that tab bars nest: two elements with `id="tab-sleep"` would break `aria-controls` for
     both tablists. Each bar also stores its position under its own sessionStorage key.

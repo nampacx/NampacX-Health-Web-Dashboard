@@ -11,6 +11,7 @@ import {
 import { DATA_TYPES_BY_ID, DEFAULT_SELECTED_IDS } from '../api/google/dataTypes'
 import { fetchLatestRecords } from '../api/google/healthApi'
 import { exerciseSessions, type ExerciseSession } from '../api/google/exercise'
+import { fetchHealthProfile, type HealthProfile } from '../api/google/profile'
 import { sleepNights, type SleepNight } from '../api/google/sleep'
 import type { DataTypeDef, FetchOutcome, HealthRecord } from '../api/google/types'
 import { useGoogleAuth } from '../auth/google/GoogleAuthContext'
@@ -47,6 +48,14 @@ interface GoogleDataState {
   error: string | null
   loadedAt: Date | null
   reload: () => void
+  /**
+   * `users/me/profile`. Its own endpoint rather than a data type, so it is
+   * fetched once per sign-in and deliberately ignores the controls — no lookback
+   * window or data-type selection applies to an age and a stride length.
+   */
+  profile: HealthProfile | null
+  profileError: string | null
+  profileLoading: boolean
 }
 
 const INITIAL_CONTROLS: GoogleControlsState = {
@@ -80,6 +89,9 @@ export function GoogleDataProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [loadedAt, setLoadedAt] = useState<Date | null>(null)
+  const [profile, setProfile] = useState<HealthProfile | null>(null)
+  const [profileError, setProfileError] = useState<string | null>(null)
+  const [profileLoading, setProfileLoading] = useState(false)
 
   // Guards against a slow earlier request overwriting a newer result.
   const requestId = useRef(0)
@@ -135,6 +147,38 @@ export function GoogleDataProvider({ children }: { children: ReactNode }) {
     void load()
   }, [load])
 
+  // The profile depends on the token and nothing else, so it sits in its own
+  // effect: reloading it whenever the lookback window or the data-type selection
+  // changes would be a request per keystroke on the controls for a value that
+  // cannot have changed.
+  useEffect(() => {
+    if (status !== 'signed-in') return
+    const accessToken = getAccessToken()
+    if (!accessToken) return
+
+    let cancelled = false
+    setProfileLoading(true)
+    setProfileError(null)
+    fetchHealthProfile(accessToken)
+      .then((next) => {
+        if (!cancelled) setProfile(next)
+      })
+      .catch((err: unknown) => {
+        // A 403 here is the expected shape of "the profile scope was never
+        // consented to", so it is reported in the profile view alone. Letting it
+        // reach the page-level banner would make a missing optional scope look
+        // like a failed load of everything.
+        if (!cancelled) setProfileError(err instanceof Error ? err.message : String(err))
+      })
+      .finally(() => {
+        if (!cancelled) setProfileLoading(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [status, getAccessToken])
+
   // Signing out must not leave the previous account's records readable on the
   // technical tab.
   useEffect(() => {
@@ -144,6 +188,8 @@ export function GoogleDataProvider({ children }: { children: ReactNode }) {
     setOutcomes([])
     setLoadedAt(null)
     setError(null)
+    setProfile(null)
+    setProfileError(null)
   }, [status])
 
   // The list used to be filtered to exercise + sleep unless a "show all
@@ -172,8 +218,25 @@ export function GoogleDataProvider({ children }: { children: ReactNode }) {
       error,
       loadedAt,
       reload: () => void load(),
+      profile,
+      profileError,
+      profileLoading,
     }),
-    [controls, records, visible, nights, sessions, outcomes, loading, error, loadedAt, load],
+    [
+      controls,
+      records,
+      visible,
+      nights,
+      sessions,
+      outcomes,
+      loading,
+      error,
+      loadedAt,
+      load,
+      profile,
+      profileError,
+      profileLoading,
+    ],
   )
 
   return <GoogleDataContext.Provider value={value}>{children}</GoogleDataContext.Provider>

@@ -9,7 +9,8 @@ export function scopeUrl(scope: ReadScope): string {
 /**
  * Read-capable data types from https://developers.google.com/health/data-types.
  * Types that only expose a `.writeonly` scope (moods, symptoms, menstrual-period,
- * ovulation-test) are intentionally omitted — they cannot be listed.
+ * ovulation-test) are intentionally omitted — they cannot be listed. See
+ * `UNREADABLE_SCOPES` below, because the Cloud console makes that look untrue.
  */
 export const DATA_TYPES: DataTypeDef[] = [
   // Activity & fitness
@@ -73,6 +74,9 @@ export const DATA_TYPES: DataTypeDef[] = [
   { id: 'nutrition-log', label: 'Nutrition log', category: 'Nutrition', scope: 'nutrition.readonly' },
   { id: 'hydration-log', label: 'Hydration log', category: 'Nutrition', scope: 'nutrition.readonly' },
   { id: 'food', label: 'Food', category: 'Nutrition', scope: 'nutrition.readonly' },
+  // A reference table, not an observation: the units a food can be logged in.
+  // Carries no timestamp, so its rows sort to the bottom of the activity list.
+  { id: 'food-measurement-unit', label: 'Food measurement units', category: 'Nutrition', scope: 'nutrition.readonly' },
 
   // Specialised
   { id: 'electrocardiogram', label: 'ECG', category: 'Specialised', scope: 'ecg.readonly' },
@@ -123,12 +127,55 @@ export const FOCUS_IDS = DATA_TYPES.filter((d) => FOCUS_CATEGORIES.includes(d.ca
 )
 
 /**
+ * Read scopes that unlock an endpoint rather than a data type, so no
+ * `DataTypeDef` carries them and `REQUESTED_SCOPES` has to name them directly.
+ *
+ * - `location.readonly` gates a workout's GPS track. It does **not** add a
+ *   coordinate to the exercise payload and it is not a listable data type — the
+ *   only thing it buys is `dataPoints.exportExerciseTcx`. See `exerciseTcx.ts`.
+ * - `profile.readonly` gates `users/me/profile`: age, join date, stride lengths.
+ *   See `profile.ts`.
+ */
+export const ENDPOINT_SCOPES: ReadScope[] = ['location.readonly', 'profile.readonly']
+
+/**
+ * Scopes that read nothing, and why they are deliberately **not** requested even
+ * when they are enabled on the OAuth client.
+ *
+ * The Cloud console offers `.readonly` variants of `reproductive_health`,
+ * `logged_symptoms` and `mindfulness`, which reads as though menstrual-period,
+ * ovulation-test, symptoms and moods had become listable. They have not. Those
+ * four data types document exactly three operations — `create`, `update`,
+ * `batchDelete` — and `dataPoints.list` accepts a closed set of seven scopes:
+ * activity_and_fitness, health_metrics_and_measurements, location, nutrition,
+ * sleep, irn, ecg. Nothing else is on the list, so granting these three unlocks
+ * no readable endpoint anywhere in v4. Requesting them would widen the consent
+ * screen — with women's-health wording, the most sensitive kind — in exchange for
+ * zero rows. Checked against the data-type table and the REST reference on
+ * 2026-08-17; revisit only if `dataPoints.list` grows the scope.
+ *
+ * `settings.readonly` is a different case and is listed here only because
+ * nothing renders it yet: it really does read, backing `users/me/settings` and
+ * `users/me/pairedDevices` (device type, battery level, last sync time).
+ */
+export const UNREADABLE_SCOPES = [
+  'reproductive_health.readonly',
+  'logged_symptoms.readonly',
+  'mindfulness.readonly',
+] as const
+
+/**
  * Every read scope the app can ever need. Google shows one consent screen, so
  * asking once up front beats re-prompting each time a data type is toggled on.
  * Trim this list if you would rather request less.
+ *
+ * A scope requested here still has to be enabled on the OAuth client in the
+ * Cloud console. One that is not simply comes back ungranted — visible as the
+ * scope list on the technical tab, and as 403s from the data types that needed
+ * it, rather than as a failed sign-in.
  */
 export const REQUESTED_SCOPES: string[] = [
   'https://www.googleapis.com/auth/userinfo.profile',
   'https://www.googleapis.com/auth/userinfo.email',
-  ...Array.from(new Set(DATA_TYPES.map((d) => d.scope))).map(scopeUrl),
+  ...Array.from(new Set([...DATA_TYPES.map((d) => d.scope), ...ENDPOINT_SCOPES])).map(scopeUrl),
 ]

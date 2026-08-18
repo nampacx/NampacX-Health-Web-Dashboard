@@ -16,6 +16,7 @@
  * parser did.
  */
 
+import { exerciseDataPointId } from './exerciseTcx'
 import { payloadLeaves, type PayloadLeaf } from './normalize'
 import { parseDurationMs, parseInterval } from './time'
 import type { HealthRecord, RawDataPoint } from './types'
@@ -37,6 +38,16 @@ export interface ExerciseSession {
   stats: ExerciseStat[]
   /** Lap / split count, 0 when the session has none. */
   splits: number
+  /**
+   * `metadata.hasGps`. The only trace of a route in the payload — the
+   * coordinates themselves exist solely in the TCX export.
+   */
+  hasGps: boolean
+  /**
+   * Server-side id, for the TCX export. Null for a data point that arrived
+   * without a resource name, which has nothing to export.
+   */
+  dataPointId: string | null
   raw: RawDataPoint
 }
 
@@ -85,6 +96,10 @@ function rankOf(path: string): number {
 function isHeaderOrNoise(leaf: PayloadLeaf): boolean {
   const last = (leaf.path.split('.').pop() ?? '').toLowerCase()
   if (last === 'displayname' || last === 'exercisetype' || last === 'activeduration') return true
+  // `hasGps` drives the route badge and the TCX button in the header. Left in the
+  // grid it reads as "Has gps: No" on every treadmill session — a stat slot spent
+  // on the absence of a feature.
+  if (last === 'hasgps') return true
   if (/ entries$/.test(leaf.text)) return true
   return false
 }
@@ -111,6 +126,18 @@ function countSplits(payload: Json): number {
     if (Array.isArray(value)) return value.length
   }
   return 0
+}
+
+/**
+ * Whether the workout carries a GPS track. Tolerates the flag sitting at the
+ * payload's top level as well as under `metadata`, the same latitude
+ * `parseInterval` takes — the reference and the wire format have disagreed about
+ * nesting before.
+ */
+function readHasGps(payload: Json): boolean {
+  const metadata = isObject(payload.metadata) ? payload.metadata : {}
+  const value = metadata.hasGps ?? payload.hasGps
+  return value === true || value === 'true'
 }
 
 /** The payload object, with the same envelope fallback `sleepNights` uses. */
@@ -159,6 +186,8 @@ export function parseExerciseRecord(record: HealthRecord): ExerciseSession {
     durationIsActive: activeMs !== null,
     stats,
     splits: countSplits(payload),
+    hasGps: readHasGps(payload),
+    dataPointId: exerciseDataPointId(record.raw.name),
     raw: record.raw,
   }
 }

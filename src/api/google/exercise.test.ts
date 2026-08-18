@@ -133,6 +133,56 @@ describe('exerciseSessions', () => {
 })
 
 /**
+ * `metadata.hasGps` is the only trace of a route in the payload — the whole
+ * DataPoint union has no lat/lon anywhere, so this boolean is what decides
+ * whether a TCX export is worth offering.
+ */
+describe('exerciseSessions, GPS', () => {
+  const withGps = point(
+    {
+      interval: { startTime: '2026-08-17T06:00:00Z', endTime: '2026-08-17T06:30:00Z' },
+      metadata: { hasGps: true, poolLengthMillimeters: '25000' },
+    },
+    'users/1234/dataTypes/exercise/dataPoints/987',
+  )
+
+  it('reads the flag and the exportable data point id', () => {
+    const [session] = exerciseSessions([record(withGps)])
+    expect(session.hasGps).toBe(true)
+    expect(session.dataPointId).toBe('987')
+  })
+
+  it('reports no GPS when the flag is false or absent', () => {
+    const treadmill = point({ metadata: { hasGps: false } })
+    expect(exerciseSessions([record(treadmill)])[0].hasGps).toBe(false)
+    expect(exerciseSessions([record(point({}))])[0].hasGps).toBe(false)
+  })
+
+  // Same latitude parseInterval takes: the reference and the wire format have
+  // disagreed about nesting before.
+  it('accepts the flag at the payload top level too', () => {
+    expect(exerciseSessions([record(point({ hasGps: true }))])[0].hasGps).toBe(true)
+  })
+
+  // A session with no resource name has no server-side id, so there is nothing to
+  // export and the button must not appear.
+  it('has no data point id when the record carries no resource name', () => {
+    const nameless: RawDataPoint = { exercise: { metadata: { hasGps: true } } }
+    const [session] = exerciseSessions([record(nameless)])
+    expect(session.hasGps).toBe(true)
+    expect(session.dataPointId).toBeNull()
+  })
+
+  // It drives a badge and a button in the header, so as a stat it would read
+  // "Has gps: No" on every indoor session — a slot spent on an absence.
+  it('keeps hasGps out of the stat grid but keeps poolLength in', () => {
+    const paths = exerciseSessions([record(withGps)])[0].stats.map((stat) => stat.path)
+    expect(paths).not.toContain('metadata.hasGps')
+    expect(paths).toContain('metadata.poolLengthMillimeters')
+  })
+})
+
+/**
  * The property that matters most: this is why the ranking is pattern-based
  * rather than a schema. An unrecognised payload still produces a full card.
  */

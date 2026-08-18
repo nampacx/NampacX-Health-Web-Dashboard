@@ -8,6 +8,7 @@ import {
 import Controls from './Controls'
 import ExerciseSection from './ExerciseSection'
 import OutcomeSummary from './OutcomeSummary'
+import ProfileSection from './ProfileSection'
 import RecordList from './RecordList'
 import SleepSection from './SleepSection'
 import Tabs, { tabButtonId, tabPanelId, type TabItem } from './Tabs'
@@ -35,7 +36,9 @@ export default function Dashboard() {
   } = useGoogleData()
   const [tab, setTab] = useGoogleTabState()
 
-  const badges: Record<GoogleTabId, string> = {
+  // Profile has no badge: the other three count rows the controls just fetched,
+  // and a "1" beside a single object that is always there would be noise.
+  const badges: Partial<Record<GoogleTabId, string>> = {
     sleep: String(nights.length),
     exercise: String(sessions.length),
     activity: String(visible.length),
@@ -74,6 +77,8 @@ export default function Dashboard() {
           <SleepSection />
         ) : tab === 'exercise' ? (
           <ExerciseSection />
+        ) : tab === 'profile' ? (
+          <ProfileSection />
         ) : (
           <>
             <div className="list-header">
