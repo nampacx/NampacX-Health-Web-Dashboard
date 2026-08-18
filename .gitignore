@@ -25,4 +25,9 @@ broker/node_modules/
 .azure/
 
 # Claude Code tool config (permission allowlists), local to whoever ran it.
-.claude/
+# `.claude/skills/` is the deliberate exception: those are shared API reference
+# material, not machine-local config, and an agent running in the cloud -- Claude
+# Code in CI, or the Copilot coding agent on a PR -- can only read them if they
+# are committed. Everything else under .claude/ stays local.
+.claude/*
+!.claude/skills/
