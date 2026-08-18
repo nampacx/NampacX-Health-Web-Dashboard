@@ -11,6 +11,10 @@ interface Props {
   colorVar: string
   /** Oldest first. */
   points: SeriesPoint[]
+  /** Optional x-axis date label formatter (defaults to day/month). */
+  xLabel?: (at: Date) => string
+  /** Optional detailed date label formatter (tooltip/table). */
+  pointLabel?: (at: Date) => string
   /** Holds the previous render at reduced opacity instead of flashing a skeleton. */
   loading?: boolean
 }
@@ -29,6 +33,8 @@ export default function LineChart({
   decimals,
   colorVar,
   points,
+  xLabel,
+  pointLabel,
   loading = false,
 }: Props) {
   const [wrapRef, width] = useElementWidth()
@@ -57,6 +63,9 @@ export default function LineChart({
       minLabelGap: MIN_LABEL_GAP,
     })
   }, [points, width, padRight])
+
+  const axisLabel = xLabel ?? shortDate
+  const detailedLabel = pointLabel ?? ((at: Date) => longDate.format(at))
 
   if (points.length === 0) {
     return (
@@ -129,7 +138,7 @@ export default function LineChart({
             className="chart-svg"
             style={{ ['--series' as string]: `var(${colorVar})` }}
             role="img"
-            aria-label={`${title}: ${points.length} readings from ${shortDate(points[0].at)} to ${shortDate(points[points.length - 1].at)}, latest ${latestText}. Use arrow keys to read each value.`}
+            aria-label={`${title}: ${points.length} readings from ${axisLabel(points[0].at)} to ${axisLabel(points[points.length - 1].at)}, latest ${latestText}. Use arrow keys to read each value.`}
             tabIndex={0}
             onKeyDown={onKeyDown}
             onPointerMove={onPointerMove}
@@ -159,7 +168,7 @@ export default function LineChart({
                 y={PAD_TOP + PLOT_HEIGHT + 16}
                 textAnchor="middle"
               >
-                {shortDate(points[index].at)}
+                {axisLabel(points[index].at)}
               </text>
             ))}
 
@@ -217,7 +226,7 @@ export default function LineChart({
             <strong>
               {format.format(activePoint.value)} {unit}
             </strong>
-            <span className="muted">{longDate.format(activePoint.at)}</span>
+            <span className="muted">{detailedLabel(activePoint.at)}</span>
           </div>
         )}
       </div>
@@ -235,7 +244,7 @@ export default function LineChart({
           <tbody>
             {[...points].reverse().map((point) => (
               <tr key={point.at.toISOString()}>
-                <td>{longDate.format(point.at)}</td>
+                <td>{detailedLabel(point.at)}</td>
                 <td className="chart-table-value">
                   {format.format(point.value)} {unit}
                 </td>

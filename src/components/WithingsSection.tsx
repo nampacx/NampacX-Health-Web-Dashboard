@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import {
   FAT_MASS_TYPE,
   FAT_RATIO_TYPE,
@@ -6,7 +6,7 @@ import {
   MUSCLE_MASS_TYPE,
   WEIGHT_TYPE,
 } from '../api/withings/measureTypes'
-import { toSeries } from '../api/withings/series'
+import { calendarWeekLabel, toSeries, type SeriesGranularity } from '../api/withings/series'
 import { useWithingsAuth } from '../auth/withings/WithingsAuthContext'
 import LineChart from '../charts/LineChart'
 import { useWithingsData } from '../state/withingsData'
@@ -38,11 +38,13 @@ export default function WithingsSection() {
   const { disconnect } = useWithingsAuth()
   const { groups, loading, error, loadedAt, reload } = useWithingsData()
   const [activeTab, setActiveTab] = useWithingsTabState()
+  const [granularity, setGranularity] = useState<SeriesGranularity>('day')
 
-  const weight = useMemo(() => toSeries(groups, WEIGHT_TYPE), [groups])
-  const fatRatio = useMemo(() => toSeries(groups, FAT_RATIO_TYPE), [groups])
-  const muscleMass = useMemo(() => toSeries(groups, MUSCLE_MASS_TYPE), [groups])
-  const fatMass = useMemo(() => toSeries(groups, FAT_MASS_TYPE), [groups])
+  const weight = useMemo(() => toSeries(groups, WEIGHT_TYPE, granularity), [groups, granularity])
+  const fatRatio = useMemo(() => toSeries(groups, FAT_RATIO_TYPE, granularity), [groups, granularity])
+  const muscleMass = useMemo(() => toSeries(groups, MUSCLE_MASS_TYPE, granularity), [groups, granularity])
+  const fatMass = useMemo(() => toSeries(groups, FAT_MASS_TYPE, granularity), [groups, granularity])
+  const isWeekView = granularity === 'week'
 
   return (
     <>
@@ -94,29 +96,50 @@ export default function WithingsSection() {
           >
             {/* Separate charts rather than one with multiple y-scales: kg and %
                 share no scale, and overlaying them would invent a correlation. */}
+            <div className="list-header">
+              <span className="muted">Chart view</span>
+              <label className="field field-inline">
+                <span>Resolution</span>
+                <select
+                  value={granularity}
+                  onChange={(event) => setGranularity(event.target.value as SeriesGranularity)}
+                >
+                  <option value="day">Day</option>
+                  <option value="week">Week (average)</option>
+                </select>
+              </label>
+            </div>
             <div className="charts">
               <LineChart
                 {...chartMeta(WEIGHT_TYPE)}
                 colorVar="--series-weight"
                 points={weight}
+                xLabel={isWeekView ? calendarWeekLabel : undefined}
+                pointLabel={isWeekView ? calendarWeekLabel : undefined}
                 loading={loading}
               />
               <LineChart
                 {...chartMeta(FAT_RATIO_TYPE)}
                 colorVar="--series-fat"
                 points={fatRatio}
+                xLabel={isWeekView ? calendarWeekLabel : undefined}
+                pointLabel={isWeekView ? calendarWeekLabel : undefined}
                 loading={loading}
               />
               <LineChart
                 {...chartMeta(MUSCLE_MASS_TYPE)}
                 colorVar="--series-muscle"
                 points={muscleMass}
+                xLabel={isWeekView ? calendarWeekLabel : undefined}
+                pointLabel={isWeekView ? calendarWeekLabel : undefined}
                 loading={loading}
               />
               <LineChart
                 {...chartMeta(FAT_MASS_TYPE)}
                 colorVar="--series-fat-mass"
                 points={fatMass}
+                xLabel={isWeekView ? calendarWeekLabel : undefined}
+                pointLabel={isWeekView ? calendarWeekLabel : undefined}
                 loading={loading}
               />
             </div>
