@@ -63,10 +63,12 @@ interface GoogleDataState {
 
 const INITIAL_CONTROLS: GoogleControlsState = {
   selectedIds: DEFAULT_SELECTED_IDS,
-  // 25 rather than 10: for sleep and exercise this is one row per night or
-  // workout and still a single request, but nutrition logs several rows a day,
-  // so 10 ran out inside two days.
-  pageSize: 25,
+  // 100 rather than 25. The defaults are now three data types rather than nine,
+  // so the row budget buys depth instead of breadth: ~100 nights and workouts,
+  // and enough nutrition rows that the oldest day is rarely the clipped one.
+  // Sleep and exercise cap at 25 per request, so this pages a few times for
+  // them and stays a single request for everything else.
+  pageSize: 100,
   query: '',
 }
 

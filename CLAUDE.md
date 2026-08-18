@@ -80,7 +80,11 @@ Data flows **auth → fetch → normalize → group → render**.
   readable data type, its OAuth scope, and optional `summaryKeys`. Write-only types (moods,
   symptoms, etc.) are intentionally absent — they can't be listed. `REQUESTED_SCOPES` asks for all
   read scopes up front so consent happens once; `DEFAULT_SELECTED_IDS` is what loads on first
-  sign-in.
+  sign-in — **one type per sub-tab that has one** (`exercise`, `sleep`, `nutrition-log`) plus
+  `SLEEP_METRIC_IDS`. Those last three render nothing of their own, so they read as clutter in the
+  picker and are the obvious thing to trim; trimming them blanks the HRV, resting heart rate and
+  respiratory rate on every sleep card, which looks like missing data rather than a setting. A test
+  pins them.
 
   **A `.readonly` scope in the Cloud console does not mean the data is readable.** The console
   offers `reproductive_health.readonly`, `logged_symptoms.readonly` and `mindfulness.readonly`,
