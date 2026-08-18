@@ -1169,6 +1169,15 @@ code {
   border-radius: var(--radius);
 }
 
+.exercise-day-plot {
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+
+.exercise-day-bar {
+  fill: var(--accent);
+}
+
 .exercise-list {
   list-style: none;
   margin: 0;
