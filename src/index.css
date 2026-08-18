@@ -17,6 +17,8 @@
      floor, CVD separation, normal-vision floor and 3:1 contrast all pass. */
   --series-weight: #1a73e8;
   --series-fat: #eb6834;
+  --series-muscle: #2e8b57;
+  --series-fat-mass: #d94841;
 
   /* Sleep stages, validated as a 4-slot categorical palette on #ffffff:
      lightness band, chroma floor, CVD separation (worst adjacent ΔE 15.2
@@ -60,6 +62,8 @@
        for a data mark. */
     --series-weight: #3987e5;
     --series-fat: #d95926;
+    --series-muscle: #35a36b;
+    --series-fat-mass: #e0645d;
 
     /* Re-stepped against #1e2126, not flipped: the light steps sit above the
        dark band (the orange at L 0.70 was the one that had to come down).

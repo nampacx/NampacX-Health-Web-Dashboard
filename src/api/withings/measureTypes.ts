@@ -37,6 +37,8 @@ export const MEASURE_TYPES_BY_TYPE = new Map(MEASURE_TYPES.map((m) => [m.type, m
 /** The two the Withings view charts over time. Both are in the catalog above. */
 export const WEIGHT_TYPE = 1
 export const FAT_RATIO_TYPE = 6
+export const FAT_MASS_TYPE = 8
+export const MUSCLE_MASS_TYPE = 76
 
 /**
  * Presentation order, independent of whatever order the API returns measures
