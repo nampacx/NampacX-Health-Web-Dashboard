@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { toSeries } from './series'
+import { calendarWeekLabel, toSeries } from './series'
 import type { MeasureGroup } from './types'
 
 function group(key: string, date: string, measures: Array<[number, number]>): MeasureGroup {
@@ -45,5 +45,30 @@ describe('toSeries', () => {
 
   it('handles an empty input', () => {
     expect(toSeries([], 1)).toEqual([])
+  })
+
+  it('aggregates to weekly calendar-week averages in week mode', () => {
+    const points = toSeries(
+      [
+        group('4', '2026-08-20T07:00:00Z', [[1, 81.8]]),
+        group('3', '2026-08-18T07:00:00Z', [[1, 82.2]]),
+        group('2', '2026-08-12T07:00:00Z', [[1, 81.2]]),
+        group('1', '2026-08-10T07:00:00Z', [[1, 82.4]]),
+      ],
+      1,
+      'week',
+    )
+
+    expect(points).toHaveLength(2)
+    expect(points[0].value).toBeCloseTo((82.4 + 81.2) / 2)
+    expect(points[1].value).toBeCloseTo((82.2 + 81.8) / 2)
+    expect(points.map((point) => calendarWeekLabel(point.at))).toEqual(['CW 33/2026', 'CW 34/2026'])
+  })
+})
+
+describe('calendarWeekLabel', () => {
+  it('uses ISO week-year around January boundaries', () => {
+    expect(calendarWeekLabel(new Date('2027-01-01T12:00:00Z'))).toBe('CW 53/2026')
+    expect(calendarWeekLabel(new Date('2027-01-04T12:00:00Z'))).toBe('CW 1/2027')
   })
 })
