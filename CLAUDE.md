@@ -100,11 +100,9 @@ Data flows **auth → fetch → normalize → group → render**.
   Left unbuilt on purpose: `settings.readonly`, which really does read — `users/me/settings` and
   `users/me/pairedDevices` (device type, battery level, last sync time). Nothing renders it yet.
 
-  **Three catalogued types do not support `list`.** `floors` and `calories-in-heart-rate-zone` are
-  `rollup`/`dailyRollup` only, and `total-calories` likewise — yet `floors` and `total-calories` sit
-  in `DEFAULT_SELECTED_IDS`, so they are expected to come back as per-type errors in
-  `OutcomeSummary` rather than rows. Fixing that means implementing `dataPoints.rollUp`, which is a
-  separate endpoint with a separate response shape, not a tweak to the catalog.
+  **Three catalogued types do not support `list`** — `floors`, `total-calories` and
+  `calories-in-heart-rate-zone` answer it with a 400 naming the operations they *do* support. They
+  are named in `ROLLUP_ONLY_IDS` and routed to `dataPoints:dailyRollUp` instead; see `rollup.ts`.
 
 - **Fetch** (`src/api/google/healthApi.ts`). `fetchLatestRecords` fans out across selected data types with
   bounded concurrency (`mapWithConcurrency`, limit 6). A per-type failure becomes a `FetchOutcome`
@@ -121,6 +119,31 @@ Data flows **auth → fetch → normalize → group → render**.
   it is what "Last 14 days" already implies. This matters most for the two types people want
   history for: the API caps a single page at **25 for `sleep` and `exercise`** (10000 for the rest)
   however much more is asked for, so before paging there was no way to see a 26th night.
+
+- **Daily rollups** (`src/api/google/rollup.ts`). The read path for the three types `list` refuses.
+  A genuinely different endpoint, not a flag: **`POST`** with a JSON body, a **civil closed-open
+  range** (`{date:{year,month,day}}` per end, time omitted so it defaults to midnight — the start
+  must be window-aligned), and a `{rollupDataPoints}` response.
+
+  Three things to know:
+
+  - **The range cap is not uniform.** 14 days for `total-calories`, `calories-in-heart-rate-zone`,
+    `heart-rate` and `active-minutes`; 90 for the rest. Over-asking is a 400, so the window is
+    clamped and the outcome reports `truncated` — which is precisely true, more data exists than was
+    fetched.
+  - **A window with no data omits its value entirely** rather than sending a zero. Such a point
+    still carries `civilStartTime`, and `extractPayload`'s "first non-envelope object" fallback would
+    cheerfully flatten *that* into a row reading "Year: 2,026". Valueless windows are dropped before
+    they reach the normalizer.
+  - **The union member is keyed by the camelCase data-type name** (`floors`, `totalCalories`) —
+    exactly what `extractPayload` already looks for. So a rollup point goes through the ordinary
+    flattener untouched and only its timestamp is supplied, which is why rolled-up rows are
+    indistinguishable from listed ones in the activity list.
+
+  Rolled-up fields are named `{field}_{aggregation}` (`kcalSum`, `countSum`), so `formatLeaf` strips
+  a trailing aggregation word before matching its unit rules — otherwise a rolled-up `kcalSum`
+  renders as a bare number. Adding the aggregated names to `summaryKeys` is the right fix for a
+  headline value, per the usual rule.
 
 - **The time filter is not one expression** (`src/api/google/dataPointFilter.ts`). `dataPoints.list`
   picks the filterable time field by the data type's **record type**, and using the wrong one is not

@@ -17,12 +17,12 @@ export const DATA_TYPES: DataTypeDef[] = [
   { id: 'steps', label: 'Steps', category: 'Activity', recordType: 'interval', scope: 'activity_and_fitness.readonly', summaryKeys: ['steps', 'count', 'stepCount'] },
   { id: 'distance', label: 'Distance', category: 'Activity', recordType: 'interval', scope: 'activity_and_fitness.readonly', summaryKeys: ['distanceMillimiters', 'distanceMillimeters', 'distance'] },
   { id: 'exercise', label: 'Exercise', category: 'Activity', recordType: 'session', scope: 'activity_and_fitness.readonly', summaryKeys: ['displayName', 'exerciseType'] },
-  { id: 'floors', label: 'Floors', category: 'Activity', recordType: 'interval', scope: 'activity_and_fitness.readonly', summaryKeys: ['floors', 'count'] },
+  { id: 'floors', label: 'Floors', category: 'Activity', recordType: 'interval', scope: 'activity_and_fitness.readonly', summaryKeys: ['countSum', 'floors', 'count'] },
   { id: 'active-minutes', label: 'Active minutes', category: 'Activity', recordType: 'interval', scope: 'activity_and_fitness.readonly', summaryKeys: ['activeMinutes', 'minutes', 'duration'] },
   { id: 'active-zone-minutes', label: 'Active zone minutes', category: 'Activity', recordType: 'interval', scope: 'activity_and_fitness.readonly', summaryKeys: ['activeZoneMinutes', 'totalMinutes', 'minutes'] },
   { id: 'active-energy-burned', label: 'Active energy burned', category: 'Activity', recordType: 'interval', scope: 'activity_and_fitness.readonly', summaryKeys: ['caloriesKcal', 'energyKcal', 'calories'] },
-  { id: 'total-calories', label: 'Total calories', category: 'Activity', recordType: 'interval', scope: 'activity_and_fitness.readonly', summaryKeys: ['caloriesKcal', 'calories'] },
-  { id: 'calories-in-heart-rate-zone', label: 'Calories in HR zone', category: 'Activity', recordType: 'interval', scope: 'activity_and_fitness.readonly' },
+  { id: 'total-calories', label: 'Total calories', category: 'Activity', recordType: 'interval', scope: 'activity_and_fitness.readonly', summaryKeys: ['kcalSum', 'caloriesKcal', 'calories'] },
+  { id: 'calories-in-heart-rate-zone', label: 'Calories in HR zone', category: 'Activity', recordType: 'interval', scope: 'activity_and_fitness.readonly', summaryKeys: ['caloriesInHeartRateZones'] },
   { id: 'time-in-heart-rate-zone', label: 'Time in HR zone', category: 'Activity', recordType: 'interval', scope: 'activity_and_fitness.readonly' },
   { id: 'activity-level', label: 'Activity level', category: 'Activity', recordType: 'interval', scope: 'activity_and_fitness.readonly' },
   { id: 'sedentary-period', label: 'Sedentary period', category: 'Activity', recordType: 'interval', scope: 'activity_and_fitness.readonly' },
@@ -91,6 +91,17 @@ export const DATA_TYPES: DataTypeDef[] = [
 ]
 
 export const DATA_TYPES_BY_ID = new Map(DATA_TYPES.map((d) => [d.id, d]))
+
+/**
+ * Data types that **cannot be listed**. `dataPoints.list` answers these with a
+ * 400 spelling out which operations they do support — `floors` allows
+ * `reconcile`, `rollup` and `dailyRollUp`, the other two only the latter pair.
+ *
+ * They stay in the catalog, and two of them stay in `DEFAULT_SELECTED_IDS`,
+ * because the data is perfectly readable — just through `dataPoints:dailyRollUp`
+ * instead. `fetchLatestRecords` routes on this set; see `rollup.ts`.
+ */
+export const ROLLUP_ONLY_IDS = new Set(['floors', 'total-calories', 'calories-in-heart-rate-zone'])
 
 /** The categories the dashboard is built around. */
 export const FOCUS_CATEGORIES = ['Activity', 'Sleep']

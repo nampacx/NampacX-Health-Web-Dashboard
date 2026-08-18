@@ -296,3 +296,71 @@ describe('fetchLatestRecords, truncation', () => {
     expect(outcomes[0].truncated).toBe(false)
   })
 })
+
+/**
+ * The routing that removes the two errors the dashboard used to open with:
+ * `floors` and `total-calories` are in DEFAULT_SELECTED_IDS and answer `list`
+ * with a 400 naming the operations they do support.
+ */
+describe('fetchLatestRecords, rollup-only data types', () => {
+  let fetchMock: ReturnType<typeof vi.fn>
+
+  beforeEach(() => {
+    resetFilterDialect()
+    fetchMock = vi.fn()
+    vi.stubGlobal('fetch', fetchMock)
+  })
+
+  afterEach(() => vi.unstubAllGlobals())
+
+  function rollupResponse(points: unknown[]) {
+    return new Response(JSON.stringify({ rollupDataPoints: points }), { status: 200 })
+  }
+
+  const floorsDay = {
+    civilStartTime: { date: { year: 2026, month: 8, day: 16 } },
+    civilEndTime: { date: { year: 2026, month: 8, day: 17 } },
+    floors: { countSum: '12' },
+  }
+
+  it('sends floors to the rollup endpoint instead of list', async () => {
+    fetchMock.mockResolvedValueOnce(rollupResponse([floorsDay]))
+    const { outcomes, records } = await fetchLatestRecords([typeById('floors')], {
+      accessToken: 't',
+      pageSize: 25,
+      lookbackDays: 7,
+    })
+
+    const url = String(fetchMock.mock.calls[0][0])
+    expect(url).toContain(':dailyRollUp')
+    expect(url).not.toContain('/dataPoints?')
+    expect(outcomes[0].status).toBe('ok')
+    expect(records).toHaveLength(1)
+  })
+
+  it('still lists the data types that support it', async () => {
+    fetchMock.mockResolvedValueOnce(page(3))
+    await fetchLatestRecords([typeById('steps')], {
+      accessToken: 't',
+      pageSize: 25,
+      lookbackDays: 7,
+    })
+    expect(String(fetchMock.mock.calls[0][0])).not.toContain(':dailyRollUp')
+  })
+
+  it('reports a rollup failure per data type, not as a whole-load failure', async () => {
+    fetchMock
+      .mockResolvedValueOnce(new Response('{}', { status: 400 }))
+      .mockResolvedValueOnce(page(2))
+
+    const { outcomes, records } = await fetchLatestRecords(
+      [typeById('floors'), typeById('steps')],
+      { accessToken: 't', pageSize: 25, lookbackDays: 7 },
+    )
+
+    const floors = outcomes.find((outcome) => outcome.dataType.id === 'floors')
+    expect(floors?.status).toBe('error')
+    // The healthy data type still contributed its rows.
+    expect(records).toHaveLength(2)
+  })
+})

@@ -1,35 +1,14 @@
+import { ROLLUP_ONLY_IDS } from './dataTypes'
 import { timeFilter, type FilterDialect } from './dataPointFilter'
+import { fetchDailyRollup } from './rollup'
 import type { DataTypeDef, FetchOutcome, HealthRecord, ListDataPointsResponse } from './types'
 import { normalizeDataPoint } from './normalize'
 
-// health.googleapis.com returns Access-Control-Allow-Origin for arbitrary
-// origins and permits the `authorization` header, so the browser can call it
-// directly — no proxy required, in development or on a static host.
-export const API_BASE = 'https://health.googleapis.com/v4'
+import { API_BASE, HealthApiError, readApiMessage } from './apiCore'
 
-export class HealthApiError extends Error {
-  constructor(
-    message: string,
-    readonly status: number,
-    readonly dataTypeId?: string,
-  ) {
-    super(message)
-    this.name = 'HealthApiError'
-  }
-}
-
-/**
- * The human-readable part of an error response. Exported because the endpoints
- * outside the dataPoints collection (`profile.ts`, `exerciseTcx.ts`) need the
- * same unwrapping but say something different about the status code.
- */
-export function readApiMessage(body: string): string {
-  try {
-    return (JSON.parse(body) as { error?: { message?: string } }).error?.message ?? ''
-  } catch {
-    return body.slice(0, 200)
-  }
-}
+// Re-exported so the many existing importers of these keep working — the split
+// into `apiCore.ts` exists to break a cycle, not to move the public surface.
+export { API_BASE, HealthApiError, readApiMessage }
 
 function describeHttpError(status: number, body: string, dataTypeId: string): string {
   const apiMessage = readApiMessage(body)
@@ -252,6 +231,20 @@ export async function fetchLatestRecords(
 ): Promise<LatestDataResult> {
   const outcomes = await mapWithConcurrency(dataTypes, 6, async (dataType): Promise<FetchOutcome & { records: HealthRecord[] }> => {
     try {
+      // Three data types answer `list` with a 400 naming the operations they do
+      // support. They are not broken and not unreadable — they are rollup-only,
+      // and go to a different endpoint entirely.
+      if (ROLLUP_ONLY_IDS.has(dataType.id)) {
+        const rollup = await fetchDailyRollup(dataType, options)
+        return {
+          dataType,
+          status: 'ok',
+          count: rollup.records.length,
+          truncated: rollup.truncated,
+          records: rollup.records,
+        }
+      }
+
       const response = await listDataPoints(dataType, options)
       const records = (response.dataPoints ?? []).map((point, index) =>
         normalizeDataPoint(point, dataType, index),
