@@ -1,3 +1,4 @@
+import { useMemo, useState } from 'react'
 import type { ExerciseDayTotal } from '../api/google/exercise'
 import { formatDuration } from '../api/google/sleep'
 import { labelledIndices } from './scale'
@@ -12,6 +13,19 @@ const PAD_BOTTOM = 26
 const PAD_X = 8
 const BAR_WIDTH = 18
 const BAR_GAP = 10
+const TOOLTIP_X_PAD = 96
+
+const TYPE_COLORS = [
+  'var(--stage-deep)',
+  'var(--stage-light)',
+  'var(--stage-rem)',
+  'var(--stage-awake)',
+  'var(--macro-carbs)',
+  'var(--macro-fat)',
+  'var(--macro-protein)',
+  'var(--series-weight)',
+  'var(--series-fat)',
+]
 
 const axisLabel = new Intl.DateTimeFormat(undefined, {
   day: 'numeric',
@@ -27,6 +41,7 @@ const longDate = new Intl.DateTimeFormat(undefined, {
 })
 
 export default function ExerciseBarChart({ days }: Props) {
+  const [activeDay, setActiveDay] = useState<number | null>(null)
   if (days.length === 0) return null
 
   const latest = days[days.length - 1]
@@ -34,6 +49,29 @@ export default function ExerciseBarChart({ days }: Props) {
   const width = Math.max(220, PAD_X * 2 + days.length * BAR_WIDTH + Math.max(0, days.length - 1) * BAR_GAP)
   const height = PAD_TOP + PLOT_HEIGHT + PAD_BOTTOM
   const labels = labelledIndices(days.length)
+  const typeLegend = useMemo(() => {
+    const totals = new Map<string, { label: string; durationMs: number }>()
+    for (const day of days) {
+      for (const type of day.byType) {
+        const current = totals.get(type.typeKey)
+        if (current) {
+          current.durationMs += type.durationMs
+        } else {
+          totals.set(type.typeKey, { label: type.label, durationMs: type.durationMs })
+        }
+      }
+    }
+    return [...totals.entries()]
+      .sort((a, b) => b[1].durationMs - a[1].durationMs || a[1].label.localeCompare(b[1].label))
+      .map(([typeKey, value], index) => ({
+        typeKey,
+        label: value.label,
+        color: TYPE_COLORS[index % TYPE_COLORS.length],
+      }))
+  }, [days])
+  const colorByType = new Map(typeLegend.map((entry) => [entry.typeKey, entry.color]))
+  const active = activeDay === null ? null : days[activeDay]
+  const activeX = activeDay === null ? null : PAD_X + activeDay * (BAR_WIDTH + BAR_GAP) + BAR_WIDTH / 2
 
   return (
     <figure className="chart">
@@ -52,7 +90,7 @@ export default function ExerciseBarChart({ days }: Props) {
           viewBox={`0 0 ${width} ${height}`}
           className="chart-svg"
           role="img"
-          aria-label={`Daily total workout time for ${days.length} ${days.length === 1 ? 'day' : 'days'} from ${longDate.format(days[0].day)} to ${longDate.format(latest.day)}. The table below lists the same totals in text.`}
+          aria-label={`Daily total workout time by exercise type for ${days.length} ${days.length === 1 ? 'day' : 'days'} from ${longDate.format(days[0].day)} to ${longDate.format(latest.day)}. The legend and table below list the same categories and totals in text.`}
         >
           <line
             className="chart-grid"
@@ -67,11 +105,36 @@ export default function ExerciseBarChart({ days }: Props) {
             const barHeight =
               maxDuration <= 0 || day.durationMs <= 0 ? 0 : Math.max(1, (day.durationMs / maxDuration) * PLOT_HEIGHT)
             const y = PAD_TOP + PLOT_HEIGHT - barHeight
+            let nextY = y + barHeight
             return (
-              <g key={day.dateKey}>
-                <rect className="exercise-day-bar" x={x} y={y} width={BAR_WIDTH} height={barHeight} rx="4" />
+              <g
+                key={day.dateKey}
+                onPointerEnter={() => setActiveDay(index)}
+                onPointerLeave={() => setActiveDay((current) => (current === index ? null : current))}
+              >
+                {day.byType.map((type, typeIndex) => {
+                  const segmentHeight =
+                    day.durationMs <= 0
+                      ? 0
+                      : typeIndex === day.byType.length - 1
+                        ? Math.max(0, nextY - y)
+                        : (type.durationMs / day.durationMs) * barHeight
+                  nextY -= segmentHeight
+                  return (
+                    <rect
+                      key={type.typeKey}
+                      className="exercise-day-bar"
+                      x={x}
+                      y={nextY}
+                      width={BAR_WIDTH}
+                      height={segmentHeight}
+                      style={{ fill: colorByType.get(type.typeKey) }}
+                    />
+                  )
+                })}
+                <rect className="exercise-day-hitbox" x={x} y={y} width={BAR_WIDTH} height={Math.max(16, barHeight)} />
                 <title>
-                  {`${longDate.format(day.day)}: ${formatDuration(day.durationMs)} across ${day.sessions} ${day.sessions === 1 ? 'workout' : 'workouts'}`}
+                  {`${longDate.format(day.day)}: ${formatDuration(day.durationMs)} across ${day.sessions} ${day.sessions === 1 ? 'workout' : 'workouts'} — ${day.byType.map((type) => `${type.label}: ${formatDuration(type.durationMs)}`).join(', ')}`}
                 </title>
                 {labels.includes(index) && (
                   <text
@@ -87,7 +150,45 @@ export default function ExerciseBarChart({ days }: Props) {
             )
           })}
         </svg>
+
+        {active && activeX !== null && (
+          <div
+            className="chart-tooltip exercise-day-tooltip"
+            style={{
+              left: `${Math.min(Math.max(activeX, TOOLTIP_X_PAD), Math.max(TOOLTIP_X_PAD, width - TOOLTIP_X_PAD))}px`,
+              top: `${Math.max(PAD_TOP + 8, PAD_TOP + PLOT_HEIGHT - (active.durationMs / Math.max(1, maxDuration)) * PLOT_HEIGHT)}px`,
+            }}
+            role="status"
+          >
+            <strong>{longDate.format(active.day)}</strong>
+            <span className="muted">{formatDuration(active.durationMs)} total</span>
+            <table>
+              <tbody>
+                {active.byType.map((type) => (
+                  <tr key={type.typeKey}>
+                    <td>
+                      <span className="exercise-day-legend-swatch" style={{ background: colorByType.get(type.typeKey) }} />
+                      {type.label}
+                    </td>
+                    <td className="chart-table-value">{formatDuration(type.durationMs)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
+
+      {typeLegend.length > 0 && (
+        <ul className="exercise-day-legend">
+          {typeLegend.map((entry) => (
+            <li key={entry.typeKey}>
+              <span className="exercise-day-legend-swatch" style={{ background: entry.color }} />
+              <span>{entry.label}</span>
+            </li>
+          ))}
+        </ul>
+      )}
 
       <details className="chart-table">
         <summary>Show {days.length} daily totals as a table</summary>

@@ -279,6 +279,7 @@ describe('exerciseDailyTotals', () => {
               endTime: '2026-08-17T06:50:00Z',
             },
             activeDuration: '3000s',
+            exerciseType: 'RUNNING',
           }),
         ),
         record(
@@ -288,6 +289,7 @@ describe('exerciseDailyTotals', () => {
               endTime: '2026-08-17T18:35:00Z',
             },
             activeDuration: '2100s',
+            exerciseType: 'WALKING',
           }),
         ),
         record(
@@ -307,11 +309,18 @@ describe('exerciseDailyTotals', () => {
       sessions: 2,
       durationMs: 5_100_000,
     })
+    expect(days[0].byType).toEqual([
+      { typeKey: 'RUNNING', label: 'Running', sessions: 1, durationMs: 3_000_000 },
+      { typeKey: 'WALKING', label: 'Walking', sessions: 1, durationMs: 2_100_000 },
+    ])
     expect(days[1]).toMatchObject({
       dateKey: '2026-08-18',
       sessions: 1,
       durationMs: 1_200_000,
     })
+    expect(days[1].byType).toEqual([
+      { typeKey: 'unknown', label: 'Other workouts', sessions: 1, durationMs: 1_200_000 },
+    ])
   })
 
   it('groups by the session recording zone rather than raw UTC date', () => {
@@ -333,6 +342,9 @@ describe('exerciseDailyTotals', () => {
 
     expect(day.dateKey).toBe('2026-08-18')
     expect(day.day.toISOString()).toBe('2026-08-18T00:00:00.000Z')
+    expect(day.byType).toEqual([
+      { typeKey: 'unknown', label: 'Other workouts', sessions: 1, durationMs: 1_800_000 },
+    ])
   })
 
   it('skips a session it cannot place on a day', () => {
@@ -352,6 +364,31 @@ describe('exerciseDailyTotals', () => {
 
     expect(days).toHaveLength(1)
     expect(days[0].dateKey).toBe('2026-08-18')
+  })
+
+  it('aggregates repeated exercise types within the same day', () => {
+    const [day] = exerciseDailyTotals(
+      exerciseSessions([
+        record(
+          point({
+            interval: { startTime: '2026-08-19T06:00:00Z', endTime: '2026-08-19T06:20:00Z' },
+            activeDuration: '1200s',
+            exerciseType: 'CYCLING',
+          }),
+        ),
+        record(
+          point({
+            interval: { startTime: '2026-08-19T18:00:00Z', endTime: '2026-08-19T18:30:00Z' },
+            activeDuration: '1500s',
+            exerciseType: 'CYCLING',
+          }),
+        ),
+      ]),
+    )
+
+    expect(day.byType).toEqual([
+      { typeKey: 'CYCLING', label: 'Cycling', sessions: 2, durationMs: 2_700_000 },
+    ])
   })
 })
 
