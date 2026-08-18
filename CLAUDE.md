@@ -16,6 +16,29 @@ A React + Vite SPA reading two **independent** providers — connect either alon
 The single most important structural fact: **nothing is shared between the two providers** beyond
 the page they render on. `src/api/{google,withings}/` and `src/auth/{google,withings}/` mirror that.
 
+## API reference skills
+
+Two committed reference packs live under `.claude/skills/`. They hold the parts of
+each provider's API that its own documentation gets wrong or buries, extracted
+from the published specs. **Read the relevant one before touching provider code**
+— several rules in both APIs are the opposite of what the vendor docs first
+suggest, and the failure mode is usually a plausible wrong number rather than an
+error.
+
+| Pack | Read it before |
+| --- | --- |
+| [`.claude/skills/google-health-api/`](.claude/skills/google-health-api/SKILL.md) | Adding a Google data type, widening scopes, writing a `dataPoints.list` filter, using `dailyRollUp`, or parsing any Google payload |
+| [`.claude/skills/withings-api/`](.claude/skills/withings-api/SKILL.md) | Writing Withings token-refresh logic, parsing a measure group, labelling a `meastype`, or handling a Withings `status` |
+
+Each has a short `SKILL.md` and a `references/` directory; the `SKILL.md` says
+which reference answers which question, so start there rather than reading all of
+it.
+
+**Agents other than Claude Code:** these are plain markdown and need no tooling —
+open the paths above directly. Claude Code discovers them automatically; the
+Copilot coding agent reaches them through this file, which is why they are
+committed rather than left in local config.
+
 ## Commands
 
 ```bash
