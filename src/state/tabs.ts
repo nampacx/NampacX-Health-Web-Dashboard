@@ -73,3 +73,17 @@ export function useTabState(initial: TabId = 'google') {
 export function useGoogleTabState(initial: GoogleTabId = 'sleep') {
   return useStoredTab(GOOGLE_TAB_IDS, 'ghd.tab.google', initial)
 }
+
+/** Inside the Withings tab. */
+export const WITHINGS_TAB_IDS = ['charts', 'readings'] as const
+export type WithingsTabId = (typeof WITHINGS_TAB_IDS)[number]
+
+export const WITHINGS_TAB_LABELS: Record<WithingsTabId, string> = {
+  charts: 'Charts',
+  readings: 'Readings',
+}
+
+/** Separate storage key so the Withings sub-tab is remembered independently. */
+export function useWithingsTabState(initial: WithingsTabId = 'charts') {
+  return useStoredTab(WITHINGS_TAB_IDS, 'ghd.tab.withings', initial)
+}
