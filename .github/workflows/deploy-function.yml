@@ -51,7 +51,13 @@ jobs:
       - name: Provision and deploy
         run: azd up --no-prompt
         env:
-          AZURE_ENV_NAME: production
+          # Must match the azd environment the live site's resources actually
+          # live in (rg-hlth-dshbrd-dev, azd env "dev" -- see .azure/config.json
+          # and the VITE_WITHINGS_BROKER_URL repo variable, which points at its
+          # func-*-givd4mxbc6iqq hosts). This was "production" until 2026-08-19,
+          # which silently provisioned and deployed to an unused rg-production
+          # instead -- the real app never received deploys.
+          AZURE_ENV_NAME: dev
           AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
           AZURE_LOCATION: ${{ vars.AZURE_LOCATION }}
           WITHINGS_CLIENT_ID: ${{ vars.WITHINGS_CLIENT_ID }}
