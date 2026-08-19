@@ -23,6 +23,12 @@ param allowedOrigins string = 'https://mikokono.de,http://localhost:5173,http://
 @description('Comma-separated redirect URIs the /exchange route will accept.')
 param allowedRedirectUris string = 'https://mikokono.de/Google-Health-Web-Dashboard/'
 
+@description('Google OAuth client ID. Public by design -- same posture as VITE_GOOGLE_CLIENT_ID and withingsClientId. Used server-side only as the expected "aud" when the bloodwork function verifies the Google access token presented by the caller.')
+param googleClientId string
+
+@description('Comma-separated browser origins allowed to call the bloodwork function.')
+param bloodworkAllowedOrigins string = 'https://mikokono.de,http://localhost:5173,http://127.0.0.1:5173'
+
 var resourceToken = uniqueString(subscription().id, resourceGroup().id, environmentName)
 
 // One convention for everything this template creates: <type>-<namePrefix>-<token>.
@@ -44,6 +50,38 @@ var keyVaultName = 'kv-ghd-${resourceToken}'
 var deploymentContainerName = 'app-package'
 var clientSecretName = 'withings-client-secret'
 var keyVaultSecretsUserRoleId = '4633458b-17de-408a-b874-0445c86b69e6'
+
+// Bloodwork tracking function (bloodwork/, .NET 10 isolated worker) -- a
+// third, independent Function App sharing only the passive/observability
+// resources above (Log Analytics, App Insights) with the broker. Its own
+// storage account, plan, and Document Intelligence resource, following the
+// same naming convention as the broker's resources.
+var bwNamePrefix = 'ghd-bloodwork'
+var bwFunctionAppName = 'func-${bwNamePrefix}-${resourceToken}'
+var bwAppServicePlanName = 'plan-${bwNamePrefix}-${resourceToken}'
+var bwDocumentIntelligenceName = 'di-${bwNamePrefix}-${resourceToken}'
+// 'stbw' discriminates this account from the broker's own 'st<token>' name,
+// which reuses the same resourceToken and would otherwise collide.
+var bwStorageAccountName = 'stbw${take(resourceToken, 20)}'
+var bwDeploymentContainerName = 'app-package'
+var bwDocumentsContainerName = 'bloodwork-documents'
+var bwJobsTableName = 'bloodworkJobs'
+var bwResultsTableName = 'bloodworkResults'
+var bwQueueName = 'bloodwork-processing'
+
+// Confirmed against Microsoft's current built-in-role list -- note this is
+// NOT the same GUID the storage.blobDataOwnerRoleAssignment below uses
+// (despite that resource's own comment calling it "Storage Blob Data
+// Owner"): b7e6dc6d-f1e8-4753-8033-0f276bb0955b is Owner, ba92f5b4-... below
+// is actually Contributor. Left as-is above since it still grants the
+// broker's deployment identity what it needs; named correctly here so the
+// mislabel isn't repeated.
+var bwStorageBlobDataContributorRoleId = 'ba92f5b4-2d11-453d-a403-e96b0029c9fe'
+var bwStorageTableDataContributorRoleId = '0a9a7e1f-b9d0-4cc4-a60d-0319b160aaa3'
+var bwStorageQueueDataContributorRoleId = '974c5e8b-45b9-4653-ba55-5f855dd0fb88'
+// The exact role Microsoft's own SDK quickstarts (C#/Python/JS alike)
+// specify for DefaultAzureCredential access to Document Intelligence.
+var bwCognitiveServicesUserRoleId = 'a97b65f3-24c7-4388-baec-2e87135dc908'
 
 resource storage 'Microsoft.Storage/storageAccounts@2023-05-01' = {
   name: storageAccountName
@@ -241,3 +279,208 @@ output KEY_VAULT_NAME string = keyVault.name
 output FUNCTION_APP_NAME string = functionApp.name
 output FUNCTION_APP_HOSTNAME string = functionApp.properties.defaultHostName
 output BROKER_URL string = 'https://${functionApp.properties.defaultHostName}/api'
+
+// ---------------------------------------------------------------------------
+// Bloodwork tracking function (bloodwork/)
+// ---------------------------------------------------------------------------
+
+resource bwStorage 'Microsoft.Storage/storageAccounts@2023-05-01' = {
+  name: bwStorageAccountName
+  location: location
+  sku: { name: 'Standard_LRS' }
+  kind: 'StorageV2'
+  properties: {
+    minimumTlsVersion: 'TLS1_2'
+    allowBlobPublicAccess: false
+  }
+}
+
+resource bwBlobService 'Microsoft.Storage/storageAccounts/blobServices@2023-05-01' = {
+  parent: bwStorage
+  name: 'default'
+}
+
+resource bwDeploymentContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-05-01' = {
+  parent: bwBlobService
+  name: bwDeploymentContainerName
+}
+
+resource bwDocumentsContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-05-01' = {
+  parent: bwBlobService
+  name: bwDocumentsContainerName
+}
+
+resource bwTableService 'Microsoft.Storage/storageAccounts/tableServices@2023-05-01' = {
+  parent: bwStorage
+  name: 'default'
+}
+
+resource bwJobsTable 'Microsoft.Storage/storageAccounts/tableServices/tables@2023-05-01' = {
+  parent: bwTableService
+  name: bwJobsTableName
+}
+
+resource bwResultsTable 'Microsoft.Storage/storageAccounts/tableServices/tables@2023-05-01' = {
+  parent: bwTableService
+  name: bwResultsTableName
+}
+
+resource bwQueueService 'Microsoft.Storage/storageAccounts/queueServices@2023-05-01' = {
+  parent: bwStorage
+  name: 'default'
+}
+
+resource bwProcessingQueue 'Microsoft.Storage/storageAccounts/queueServices/queues@2023-05-01' = {
+  parent: bwQueueService
+  name: bwQueueName
+}
+
+// Document Intelligence (Cognitive Services). 'FormRecognizer' is still the
+// correct ARM `kind` even though the product itself was renamed.
+// customSubDomainName is REQUIRED for Entra ID (managed identity) auth --
+// regional endpoints without one don't support it.
+resource documentIntelligence 'Microsoft.CognitiveServices/accounts@2023-05-01' = {
+  name: bwDocumentIntelligenceName
+  location: location
+  kind: 'FormRecognizer'
+  sku: { name: 'S0' }
+  properties: {
+    customSubDomainName: bwDocumentIntelligenceName
+    publicNetworkAccess: 'Enabled'
+  }
+}
+
+// Flex Consumption, same posture as the broker's plan: no capacity to size,
+// scales to zero, billed per execution.
+resource bwAppServicePlan 'Microsoft.Web/serverfarms@2023-12-01' = {
+  name: bwAppServicePlanName
+  location: location
+  sku: {
+    name: 'FC1'
+    tier: 'FlexConsumption'
+  }
+  kind: 'functionapp'
+  properties: {
+    reserved: true // Linux
+  }
+}
+
+resource bloodworkFunctionApp 'Microsoft.Web/sites@2023-12-01' = {
+  name: bwFunctionAppName
+  location: location
+  kind: 'functionapp,linux'
+  // azd resolves the `bloodwork` service in azure.yaml to this resource by
+  // tag -- without it, `azd deploy` fails the same way the broker's own
+  // comment above describes.
+  tags: {
+    'azd-service-name': 'bloodwork'
+    'azd-env-name': environmentName
+  }
+  // System-assigned only: unlike the broker, there is no Key Vault
+  // reference to resolve here (Document Intelligence auth uses this same
+  // identity directly, granted Cognitive Services User below), so no
+  // user-assigned identity is needed.
+  identity: {
+    type: 'SystemAssigned'
+  }
+  properties: {
+    serverFarmId: bwAppServicePlan.id
+    httpsOnly: true
+    functionAppConfig: {
+      deployment: {
+        storage: {
+          type: 'blobContainer'
+          value: '${bwStorage.properties.primaryEndpoints.blob}${bwDeploymentContainerName}'
+          authentication: {
+            type: 'SystemAssignedIdentity'
+          }
+        }
+      }
+      scaleAndConcurrency: {
+        maximumInstanceCount: 40
+        instanceMemoryMB: 2048
+      }
+      runtime: {
+        name: 'dotnet-isolated'
+        // Verify against `az functionapp list-flexconsumption-runtimes
+        // --location <region> --runtime dotnet-isolated` before the first
+        // real deploy -- Flex Consumption's supported-version strings for
+        // .NET aren't guaranteed to match the NuGet/TFM version format.
+        version: '10.0'
+      }
+    }
+    siteConfig: {
+      // CORS handled entirely in code (see bloodwork/Services/CorsService.cs
+      // and Middleware/GoogleAuthMiddleware.cs) -- same reasoning as the
+      // broker's own siteConfig comment: leaving the platform's CORS list
+      // empty is deliberate, not an omission.
+      appSettings: [
+        { name: 'AzureWebJobsStorage__accountName', value: bwStorage.name }
+        { name: 'APPLICATIONINSIGHTS_CONNECTION_STRING', value: appInsights.properties.ConnectionString }
+        { name: 'GOOGLE_CLIENT_ID', value: googleClientId }
+        { name: 'ALLOWED_ORIGINS', value: bloodworkAllowedOrigins }
+        { name: 'STORAGE_ACCOUNT_NAME', value: bwStorage.name }
+        { name: 'DOCUMENT_INTELLIGENCE_ENDPOINT', value: documentIntelligence.properties.endpoint }
+        // No DOCUMENT_INTELLIGENCE_KEY here on purpose -- prod calls
+        // Document Intelligence with this Function's own managed identity
+        // (see bwDocIntelRoleAssignment below), not a key.
+      ]
+    }
+  }
+}
+
+resource bwBlobRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(bwStorage.id, bloodworkFunctionApp.id, bwStorageBlobDataContributorRoleId)
+  scope: bwStorage
+  properties: {
+    principalId: bloodworkFunctionApp.identity.principalId
+    principalType: 'ServicePrincipal'
+    roleDefinitionId: subscriptionResourceId(
+      'Microsoft.Authorization/roleDefinitions',
+      bwStorageBlobDataContributorRoleId // Storage Blob Data Contributor
+    )
+  }
+}
+
+resource bwTableRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(bwStorage.id, bloodworkFunctionApp.id, bwStorageTableDataContributorRoleId)
+  scope: bwStorage
+  properties: {
+    principalId: bloodworkFunctionApp.identity.principalId
+    principalType: 'ServicePrincipal'
+    roleDefinitionId: subscriptionResourceId(
+      'Microsoft.Authorization/roleDefinitions',
+      bwStorageTableDataContributorRoleId // Storage Table Data Contributor
+    )
+  }
+}
+
+resource bwQueueRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(bwStorage.id, bloodworkFunctionApp.id, bwStorageQueueDataContributorRoleId)
+  scope: bwStorage
+  properties: {
+    principalId: bloodworkFunctionApp.identity.principalId
+    principalType: 'ServicePrincipal'
+    roleDefinitionId: subscriptionResourceId(
+      'Microsoft.Authorization/roleDefinitions',
+      bwStorageQueueDataContributorRoleId // Storage Queue Data Contributor
+    )
+  }
+}
+
+resource bwDocIntelRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(documentIntelligence.id, bloodworkFunctionApp.id, bwCognitiveServicesUserRoleId)
+  scope: documentIntelligence
+  properties: {
+    principalId: bloodworkFunctionApp.identity.principalId
+    principalType: 'ServicePrincipal'
+    roleDefinitionId: subscriptionResourceId(
+      'Microsoft.Authorization/roleDefinitions',
+      bwCognitiveServicesUserRoleId // Cognitive Services User
+    )
+  }
+}
+
+output BLOODWORK_FUNCTION_APP_NAME string = bloodworkFunctionApp.name
+output BLOODWORK_URL string = 'https://${bloodworkFunctionApp.properties.defaultHostName}/api'
+output DOCUMENT_INTELLIGENCE_ENDPOINT string = documentIntelligence.properties.endpoint

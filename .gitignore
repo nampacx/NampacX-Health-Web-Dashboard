@@ -21,6 +21,15 @@ broker/local.settings.json
 broker/dist/
 broker/node_modules/
 
+# Bloodwork tracking function (bloodwork/). local.settings.json holds live
+# secrets when populated for local dev -- verify with `git check-ignore -v`
+# before it's ever filled in.
+bloodwork/local.settings.json
+bloodwork/bin/
+bloodwork/obj/
+bloodwork/Bloodwork.Tests/bin/
+bloodwork/Bloodwork.Tests/obj/
+
 # azd local deployment state (env vars, provisioning cache).
 .azure/
 

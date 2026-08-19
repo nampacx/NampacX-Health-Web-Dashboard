@@ -1,0 +1,13 @@
+{
+  "IsEncrypted": false,
+  "Values": {
+    "AzureWebJobsStorage": "UseDevelopmentStorage=true",
+    "FUNCTIONS_WORKER_RUNTIME": "dotnet-isolated",
+    "GOOGLE_CLIENT_ID": "",
+    "ALLOWED_ORIGINS": "http://localhost:5173,http://127.0.0.1:5173",
+    "STORAGE_CONNECTION_STRING": "UseDevelopmentStorage=true",
+    "DOCUMENT_INTELLIGENCE_ENDPOINT": "",
+    "DOCUMENT_INTELLIGENCE_KEY": "",
+    "MAX_UPLOAD_BYTES": "20971520"
+  }
+}

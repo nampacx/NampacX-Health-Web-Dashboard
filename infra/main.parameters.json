@@ -7,6 +7,8 @@
     "withingsClientId": { "value": "${WITHINGS_CLIENT_ID}" },
     "withingsClientSecret": { "value": "${WITHINGS_CLIENT_SECRET}" },
     "allowedOrigins": { "value": "${ALLOWED_ORIGINS=https://mikokono.de,http://localhost:5173,http://127.0.0.1:5173}" },
-    "allowedRedirectUris": { "value": "${ALLOWED_REDIRECT_URIS=https://mikokono.de/Google-Health-Web-Dashboard/}" }
+    "allowedRedirectUris": { "value": "${ALLOWED_REDIRECT_URIS=https://mikokono.de/Google-Health-Web-Dashboard/}" },
+    "googleClientId": { "value": "${GOOGLE_CLIENT_ID}" },
+    "bloodworkAllowedOrigins": { "value": "${BLOODWORK_ALLOWED_ORIGINS=https://mikokono.de,http://localhost:5173,http://127.0.0.1:5173}" }
   }
 }

@@ -1,14 +1,14 @@
-name: Deploy Withings token broker
+name: Deploy bloodwork tracking function
 
 # `azd up` provisions and deploys the FULL infra/main.bicep template, which
-# now also defines the bloodwork function's resources (see that file) -- so
-# every run of this workflow re-applies both services' infrastructure, not
-# just the broker's. That's why its required parameters below cover both.
+# also defines the Withings broker's resources (see that file) -- so every
+# run of this workflow re-applies both services' infrastructure, not just
+# bloodwork's. That's why its required parameters below cover both.
 
 on:
   push:
     branches: [main]
-    paths: ['broker/**', 'infra/**', 'azure.yaml']
+    paths: ['bloodwork/**', 'infra/**', 'azure.yaml']
   workflow_dispatch:
 
 permissions:
@@ -16,9 +16,9 @@ permissions:
   contents: read
 
 concurrency:
-  # Shared with deploy-bloodwork-function.yml: both workflows run `azd up`
-  # against the same resource group/template, so they must not run
-  # concurrently even though each individual deployment is idempotent.
+  # Shared with deploy-function.yml: both workflows run `azd up` against the
+  # same resource group/template, so they must not run concurrently even
+  # though each individual deployment is idempotent.
   group: azd-deploy-production
   cancel-in-progress: false
 
@@ -33,10 +33,10 @@ jobs:
       - name: Install azd
         uses: Azure/setup-azd@v2
 
-      - name: Set up Node
-        uses: actions/setup-node@v7
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
         with:
-          node-version: 22
+          dotnet-version: '10.0.x'
 
       - name: Log in to Azure (OIDC)
         run: |
@@ -54,12 +54,12 @@ jobs:
           AZURE_ENV_NAME: production
           AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
           AZURE_LOCATION: ${{ vars.AZURE_LOCATION }}
+          GOOGLE_CLIENT_ID: ${{ vars.GOOGLE_CLIENT_ID }}
+          BLOODWORK_ALLOWED_ORIGINS: ${{ vars.BLOODWORK_ALLOWED_ORIGINS }}
+          # Required by the broker's bicep parameters even though this
+          # workflow doesn't touch broker/ -- see the note at the top of
+          # this file.
           WITHINGS_CLIENT_ID: ${{ vars.WITHINGS_CLIENT_ID }}
           WITHINGS_CLIENT_SECRET: ${{ secrets.WITHINGS_CLIENT_SECRET }}
           ALLOWED_ORIGINS: ${{ vars.WITHINGS_ALLOWED_ORIGINS }}
           ALLOWED_REDIRECT_URIS: ${{ vars.WITHINGS_ALLOWED_REDIRECT_URIS }}
-          # Required by the bloodwork function's bicep parameters even
-          # though this workflow doesn't touch bloodwork/ -- see the note
-          # at the top of this file.
-          GOOGLE_CLIENT_ID: ${{ vars.GOOGLE_CLIENT_ID }}
-          BLOODWORK_ALLOWED_ORIGINS: ${{ vars.BLOODWORK_ALLOWED_ORIGINS }}

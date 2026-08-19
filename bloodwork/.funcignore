@@ -1,0 +1,8 @@
+bin/Debug
+obj
+*.user
+.vscode
+.git*
+local.settings.json
+Bloodwork.Tests
+*.md
