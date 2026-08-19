@@ -8,7 +8,7 @@ namespace Bloodwork.Models;
 /// PartitionKey is the report date (ISO YYYY-MM-DD, taken from "vom
 /// DD.MM.YYYY" in the document, not the "Datum:" print date); RowKey is the
 /// lab's own short analyte code from the "Analyse" column (sanitized against
-/// Table Storage's forbidden RowKey characters and deduped with a #2, #3
+/// Table Storage's forbidden RowKey characters and deduped with a -2, -3
 /// suffix if a document contains a re-test), since it's unvalidated OCR
 /// output.
 /// </summary>

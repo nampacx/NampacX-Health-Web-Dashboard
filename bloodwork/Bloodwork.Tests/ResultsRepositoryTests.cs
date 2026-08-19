@@ -56,7 +56,7 @@ public class ResultsRepositoryTests
 
         Assert.Equal(2, written.Count);
         Assert.Equal("GLYKOH", written[0].RowKey);
-        Assert.Equal("GLYKOH#2", written[1].RowKey);
+        Assert.Equal("GLYKOH-2", written[1].RowKey);
     }
 
     [Fact]

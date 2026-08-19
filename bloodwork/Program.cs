@@ -8,7 +8,6 @@ using Azure.Storage.Queues;
 using Bloodwork.Middleware;
 using Bloodwork.Services;
 using Microsoft.Azure.Functions.Worker;
-using Microsoft.Azure.Functions.Worker.ApplicationInsights;
 using Microsoft.Azure.Functions.Worker.Builder;
 using Microsoft.Azure.Functions.Worker.OpenTelemetry;
 using Microsoft.Extensions.DependencyInjection;
@@ -20,16 +19,28 @@ var builder = FunctionsApplication.CreateBuilder(args);
 // built-in HttpRequestData/HttpResponseData model.
 builder.ConfigureFunctionsWebApplication();
 
-// ConfigureFunctionsApplicationInsights() only adds Functions-specific
-// telemetry initializers on top of an OpenTelemetry pipeline -- it does not
-// create one, and throws OptionsValidationException at startup if nothing
-// else registered one. AddOpenTelemetry()...UseAzureMonitorExporter() is
-// that missing piece; APPLICATIONINSIGHTS_CONNECTION_STRING (set in
-// infra/main.bicep) is picked up automatically by the exporter.
-builder.Services.AddOpenTelemetry()
-    .UseFunctionsWorkerDefaults()
-    .UseAzureMonitorExporter();
-builder.Services.ConfigureFunctionsApplicationInsights();
+// Current Microsoft docs for direct-to-Application-Insights logging in the
+// isolated worker use ONLY this OpenTelemetry registration -- no call to
+// ConfigureFunctionsApplicationInsights(). That method belongs to the OLDER,
+// non-OpenTelemetry pattern (paired with AddApplicationInsightsTelemetryWorkerService()):
+// it validates for options only that older call registers, so calling it on
+// top of an OpenTelemetry-only pipeline throws "OptionsValidationException:
+// Application Insights SDK has not been added" at startup.
+//
+// UseAzureMonitorExporter() throws its own startup exception --
+// InvalidOperationException: "A connection string was not found" -- the
+// moment the host starts if APPLICATIONINSIGHTS_CONNECTION_STRING isn't set
+// (confirmed empirically, not assumed). Azure always sets it (infra/main.bicep),
+// but local.settings.json.example deliberately doesn't -- App Insights is
+// optional observability, not a dependency local dev should be forced to
+// provision, so the whole block is skipped rather than crashing `func start`.
+var appInsightsConnectionString = builder.Configuration["APPLICATIONINSIGHTS_CONNECTION_STRING"];
+if (!string.IsNullOrWhiteSpace(appInsightsConnectionString))
+{
+    builder.Services.AddOpenTelemetry()
+        .UseFunctionsWorkerDefaults()
+        .UseAzureMonitorExporter();
+}
 
 // Loaded once, eagerly, at startup -- an invalid deployment fails to start at
 // all rather than accepting requests and 500ing each one. This is the .NET
