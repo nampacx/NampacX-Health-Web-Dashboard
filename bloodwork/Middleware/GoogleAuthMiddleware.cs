@@ -36,18 +36,21 @@ public sealed class GoogleAuthMiddleware(CorsService cors, GoogleTokenVerifier t
 
         if (isPreflight)
         {
-            // NOT a 204 (confirmed on Azure's real Flex Consumption app, not
-            // reproducible against a local `func start`): a bodyless 204
-            // response -- regardless of which IActionResult produces it --
-            // comes back over the wire with every header set on
-            // HttpContext.Response stripped, including the CORS ones just
-            // added above, so the preflight fails and the whole API becomes
-            // unreachable from a browser. HTTP 204 forbids a body by spec, so
-            // once the status is 204 nothing can carry a body through and this
-            // can't be fixed by changing the result type. A 2xx with an actual
-            // body is what ErrorHandlingMiddleware's (working) error responses
-            // all have in common, so preflight gets a trivial one too.
-            context.GetInvocationResult().Value = new ObjectResult(new { }) { StatusCode = StatusCodes.Status200OK };
+            // Two prior attempts here (StatusCodeResult(204), then
+            // ObjectResult with a 200+body) both still came back from the
+            // real deployed app as a bare "204 No Content" with every header
+            // stripped -- confirmed with curl directly against
+            // func-ghd-bloodwork-givd4mxbc6iqq, restart included, not just a
+            // stale-instance artifact. Whatever converts
+            // context.GetInvocationResult().Value into the actual response
+            // on that host isn't respecting it for this middleware
+            // short-circuit path. Writing the response directly to
+            // HttpContext.Response instead -- bypassing that conversion
+            // entirely -- since that's the one thing this whole investigation
+            // hasn't tried yet.
+            httpContext.Response.StatusCode = StatusCodes.Status200OK;
+            httpContext.Response.ContentType = "application/json; charset=utf-8";
+            await httpContext.Response.WriteAsync("{}");
             return;
         }
 
