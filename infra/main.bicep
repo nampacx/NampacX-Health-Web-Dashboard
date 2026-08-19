@@ -235,6 +235,18 @@ resource functionApp 'Microsoft.Web/sites@2023-12-01' = {
       // the platform's own CORS list empty is deliberate, not an omission.
       // Setting both here and in code would emit two Access-Control-Allow-
       // Origin headers, which browsers reject outright.
+      //
+      // This only works because every broker call from the SPA is a CORS
+      // "simple request" (POST, Content-Type: application/x-www-form-
+      // urlencoded, no custom headers -- see withingsAuth.ts) that never
+      // triggers a preflight. The bloodwork Function App below needed the
+      // opposite fix: every one of its calls carries an Authorization
+      // header, which always triggers an OPTIONS preflight, and on Flex
+      // Consumption the PLATFORM intercepts and answers that preflight
+      // before code-level CORS handling ever runs -- confirmed empirically,
+      // and contrary to what this comment used to assume too. If broker ever
+      // grows an endpoint that isn't a simple request, it will need the same
+      // platform-level `cors` config bloodworkFunctionApp has, not more code.
       appSettings: [
         { name: 'AzureWebJobsStorage__accountName', value: storage.name }
         { name: 'APPLICATIONINSIGHTS_CONNECTION_STRING', value: appInsights.properties.ConnectionString }
@@ -410,10 +422,20 @@ resource bloodworkFunctionApp 'Microsoft.Web/sites@2023-12-01' = {
       }
     }
     siteConfig: {
-      // CORS handled entirely in code (see bloodwork/Services/CorsService.cs
-      // and Middleware/GoogleAuthMiddleware.cs) -- same reasoning as the
-      // broker's own siteConfig comment: leaving the platform's CORS list
-      // empty is deliberate, not an omission.
+      // The platform's own CORS handling, NOT "handled entirely in code" as
+      // this comment used to claim -- that was wrong. On Flex Consumption
+      // (per Microsoft's own docs, App Service generally) OPTIONS preflight
+      // requests are intercepted and answered by this site-level CORS config
+      // before a Function App's own code ever runs, regardless of what that
+      // code does; bloodwork/Services/CorsService.cs and
+      // Middleware/GoogleAuthMiddleware.cs only cover local `func start`,
+      // where there is no such platform layer. Confirmed empirically: with
+      // this left empty, every authenticated browser call failed with no
+      // Access-Control-Allow-Origin on its preflight, full stop.
+      cors: {
+        allowedOrigins: split(bloodworkAllowedOrigins, ',')
+        supportCredentials: false
+      }
       appSettings: [
         { name: 'AzureWebJobsStorage__accountName', value: bwStorage.name }
         { name: 'APPLICATIONINSIGHTS_CONNECTION_STRING', value: appInsights.properties.ConnectionString }

@@ -36,21 +36,20 @@ public sealed class GoogleAuthMiddleware(CorsService cors, GoogleTokenVerifier t
 
         if (isPreflight)
         {
-            // Two prior attempts here (StatusCodeResult(204), then
-            // ObjectResult with a 200+body) both still came back from the
-            // real deployed app as a bare "204 No Content" with every header
-            // stripped -- confirmed with curl directly against
-            // func-ghd-bloodwork-givd4mxbc6iqq, restart included, not just a
-            // stale-instance artifact. Whatever converts
-            // context.GetInvocationResult().Value into the actual response
-            // on that host isn't respecting it for this middleware
-            // short-circuit path. Writing the response directly to
-            // HttpContext.Response instead -- bypassing that conversion
-            // entirely -- since that's the one thing this whole investigation
-            // hasn't tried yet.
-            httpContext.Response.StatusCode = StatusCodes.Status200OK;
-            httpContext.Response.ContentType = "application/json; charset=utf-8";
-            await httpContext.Response.WriteAsync("{}");
+            // This code path never actually runs against the deployed app on
+            // Azure: proven by temporarily making it throw unconditionally
+            // and observing the client still get a clean 204 with no trace of
+            // the exception. On Flex Consumption (and, per Microsoft's own
+            // docs, App Service generally) the platform's own CORS handling
+            // -- driven by the Function App's `cors.allowedOrigins` site
+            // config, set in main.bicep -- intercepts and answers every
+            // OPTIONS preflight before user code ever sees the request, full
+            // stop; no IActionResult shape or direct HttpContext.Response
+            // write from here can change that response. This branch only
+            // matters for `func start` locally, where there is no such
+            // platform layer and this is the only thing that answers
+            // preflight at all -- keep it correct for that case.
+            context.GetInvocationResult().Value = new StatusCodeResult(StatusCodes.Status204NoContent);
             return;
         }
 
