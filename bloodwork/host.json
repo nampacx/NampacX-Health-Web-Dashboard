@@ -4,7 +4,8 @@
   "functionTimeout": "00:10:00",
   "extensions": {
     "queues": {
-      "maxDequeueCount": 5
+      "maxDequeueCount": 5,
+      "messageEncoding": "none"
     }
   }
 }
