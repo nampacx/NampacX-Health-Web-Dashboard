@@ -58,6 +58,15 @@ jobs:
           # which silently provisioned and deployed to an unused rg-production
           # instead -- the real app never received deploys.
           AZURE_ENV_NAME: dev
+          # main.bicep is resourceGroup-scoped (targetScope = 'resourceGroup'),
+          # so azd needs to be told which resource group to deploy into -- by
+          # default it picks rg-<envName> ("rg-dev"), which does NOT exist.
+          # The real one, rg-hlth-dshbrd-dev, is a one-off name set locally via
+          # `azd env set AZURE_RESOURCE_GROUP` when this was first provisioned
+          # (recorded only in the gitignored .azure/dev/.env, never in source
+          # control), so CI never knew about it. See deploy-bloodwork-function.yml
+          # for the fuller note.
+          AZURE_RESOURCE_GROUP: rg-hlth-dshbrd-dev
           AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
           AZURE_LOCATION: ${{ vars.AZURE_LOCATION }}
           WITHINGS_CLIENT_ID: ${{ vars.WITHINGS_CLIENT_ID }}
