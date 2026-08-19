@@ -2,6 +2,7 @@ using Azure;
 using Azure.AI.DocumentIntelligence;
 using Azure.Data.Tables;
 using Azure.Identity;
+using Azure.Monitor.OpenTelemetry.Exporter;
 using Azure.Storage.Blobs;
 using Azure.Storage.Queues;
 using Bloodwork.Middleware;
@@ -9,6 +10,7 @@ using Bloodwork.Services;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.ApplicationInsights;
 using Microsoft.Azure.Functions.Worker.Builder;
+using Microsoft.Azure.Functions.Worker.OpenTelemetry;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
@@ -18,6 +20,15 @@ var builder = FunctionsApplication.CreateBuilder(args);
 // built-in HttpRequestData/HttpResponseData model.
 builder.ConfigureFunctionsWebApplication();
 
+// ConfigureFunctionsApplicationInsights() only adds Functions-specific
+// telemetry initializers on top of an OpenTelemetry pipeline -- it does not
+// create one, and throws OptionsValidationException at startup if nothing
+// else registered one. AddOpenTelemetry()...UseAzureMonitorExporter() is
+// that missing piece; APPLICATIONINSIGHTS_CONNECTION_STRING (set in
+// infra/main.bicep) is picked up automatically by the exporter.
+builder.Services.AddOpenTelemetry()
+    .UseFunctionsWorkerDefaults()
+    .UseAzureMonitorExporter();
 builder.Services.ConfigureFunctionsApplicationInsights();
 
 // Loaded once, eagerly, at startup -- an invalid deployment fails to start at
