@@ -10,7 +10,7 @@ export default function Header() {
           ♥
         </span>
         <div>
-          <h1>Health Dashboard</h1>
+          <h1>Nampacx Health Dashboard</h1>
           <p className="brand-sub">Activity, sleep, and body composition — together</p>
         </div>
       </div>
