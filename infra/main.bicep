@@ -69,14 +69,28 @@ var bwJobsTableName = 'bloodworkJobs'
 var bwResultsTableName = 'bloodworkResults'
 var bwQueueName = 'bloodwork-processing'
 
-// Confirmed against Microsoft's current built-in-role list -- note this is
-// NOT the same GUID the storage.blobDataOwnerRoleAssignment below uses
-// (despite that resource's own comment calling it "Storage Blob Data
-// Owner"): b7e6dc6d-f1e8-4753-8033-0f276bb0955b is Owner, ba92f5b4-... below
-// is actually Contributor. Left as-is above since it still grants the
-// broker's deployment identity what it needs; named correctly here so the
-// mislabel isn't repeated.
-var bwStorageBlobDataContributorRoleId = 'ba92f5b4-2d11-453d-a403-e96b0029c9fe'
+// Confirmed against Microsoft's current built-in-role list: b7e6dc6d-...
+// below is genuinely "Storage Blob Data Owner"; ba92f5b4-... (used by
+// broker's own storage.blobDataOwnerRoleAssignment, despite that resource's
+// name and comment both claiming Owner) is actually "Storage Blob Data
+// Contributor" -- a pre-existing mislabel, left as-is there since Contributor
+// still covers everything broker needs (it has no queue/blob trigger, only
+// HTTP -- see below for why that distinction matters).
+//
+// bloodworkFunctionApp gets the real Owner role instead: it's the only
+// Function App in this template with a non-HTTP trigger (ProcessDocument's
+// QueueTrigger), and per Microsoft's own docs, "Storage Blob Data Owner...
+// provides the minimum storage account permissions for the host-required
+// AzureWebJobsStorage connection" -- i.e. for the WebJobs SDK's own
+// queue-listener/lease machinery, not just the app code's blob/queue/table
+// reads and writes (Contributor, which is all this used to grant, does cover
+// those). NOTE: this was NOT the cause of the messageEncoding bug described
+// on host.json's `queues` setting below -- granting Owner was tried first,
+// on the strength of this same Microsoft doc quote, and empirically made no
+// difference; the actual bug was elsewhere. Left as Owner anyway because it
+// is still the documented minimum for this exact trigger type, and because
+// downgrading it back to Contributor was never verified safe.
+var bwStorageBlobDataOwnerRoleId = 'b7e6dc6d-f1e8-4753-8033-0f276bb0955b'
 var bwStorageTableDataContributorRoleId = '0a9a7e1f-b9d0-4cc4-a60d-0319b160aaa3'
 var bwStorageQueueDataContributorRoleId = '974c5e8b-45b9-4653-ba55-5f855dd0fb88'
 // The exact role Microsoft's own SDK quickstarts (C#/Python/JS alike)
@@ -452,14 +466,14 @@ resource bloodworkFunctionApp 'Microsoft.Web/sites@2023-12-01' = {
 }
 
 resource bwBlobRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(bwStorage.id, bloodworkFunctionApp.id, bwStorageBlobDataContributorRoleId)
+  name: guid(bwStorage.id, bloodworkFunctionApp.id, bwStorageBlobDataOwnerRoleId)
   scope: bwStorage
   properties: {
     principalId: bloodworkFunctionApp.identity.principalId
     principalType: 'ServicePrincipal'
     roleDefinitionId: subscriptionResourceId(
       'Microsoft.Authorization/roleDefinitions',
-      bwStorageBlobDataContributorRoleId // Storage Blob Data Contributor
+      bwStorageBlobDataOwnerRoleId // Storage Blob Data Owner -- see the var's own comment for why not Contributor
     )
   }
 }

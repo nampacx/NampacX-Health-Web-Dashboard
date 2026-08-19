@@ -58,7 +58,16 @@ builder.Services.AddScoped<DocumentIntelligenceService>();
 // Storage clients: connection string locally (Azurite), account URL +
 // DefaultAzureCredential in Azure via the Function App's own system-assigned
 // managed identity. QueueMessageEncoding.None keeps queue messages as plain
-// JSON text, matching what the [QueueTrigger] string parameter expects.
+// JSON text -- but that's only half of this contract. The [QueueTrigger] in
+// ProcessDocumentFunction.cs binds to the SDK's QueueMessage type, and the
+// WebJobs SDK's queue LISTENER defaults to expecting Base64-encoded messages
+// regardless of what this sender does; host.json's `extensions.queues.
+// messageEncoding: "none"` is what makes the listener side agree with this
+// one. Without it, every message this client sends comes back from the
+// listener as "Message decoding has failed!" and gets poisoned after 5
+// attempts -- instantly, silently (no application-level telemetry at all,
+// since the failure never reaches this app's own code), which is exactly
+// why it went unnoticed until a real upload actually hit it in production.
 builder.Services.AddSingleton(sp =>
 {
     var o = sp.GetRequiredService<BloodworkOptions>();
