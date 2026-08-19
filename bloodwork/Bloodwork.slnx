@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="Bloodwork.csproj" />
+  <Project Path="Bloodwork.Tests/Bloodwork.Tests.csproj" />
+</Solution>

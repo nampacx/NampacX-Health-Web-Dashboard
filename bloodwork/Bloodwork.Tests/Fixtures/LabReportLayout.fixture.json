@@ -1,0 +1,1071 @@
+{
+  "apiVersion": "2024-11-30",
+  "modelId": "prebuilt-layout",
+  "stringIndexType": "textElements",
+  "content": "x.isynet - Version Quartalsversion (19.4.71) MCS\nfuer: REDACTED\nDatum: 14.08.2026 Seite: 1\n\nLaborblatt: Tagesansicht (676) REDACTED, Testpatient 01.01.1990; M, Facharzt-Bericht(Vorlaeufiger Befund) vom 10.08.2026\n",
+  "pages": [],
+  "tables": [
+    {
+      "rowCount": 31,
+      "columnCount": 7,
+      "cells": [
+        {
+          "rowIndex": 0,
+          "columnIndex": 0,
+          "columnSpan": 7,
+          "content": "Laborblatt: Tagesansicht (676) REDACTED, Testpatient 01.01.1990; M"
+        },
+        {
+          "rowIndex": 1,
+          "columnIndex": 0,
+          "content": "Analyse"
+        },
+        {
+          "rowIndex": 1,
+          "columnIndex": 1,
+          "content": "Bezeichnung"
+        },
+        {
+          "rowIndex": 1,
+          "columnIndex": 2,
+          "content": "Ergebniswert"
+        },
+        {
+          "rowIndex": 1,
+          "columnIndex": 3,
+          "content": "+/-"
+        },
+        {
+          "rowIndex": 1,
+          "columnIndex": 4,
+          "content": "Einheit"
+        },
+        {
+          "rowIndex": 1,
+          "columnIndex": 5,
+          "content": "Ergebnistext"
+        },
+        {
+          "rowIndex": 1,
+          "columnIndex": 6,
+          "content": "Normbereich"
+        },
+        {
+          "rowIndex": 2,
+          "columnIndex": 0,
+          "content": "****"
+        },
+        {
+          "rowIndex": 2,
+          "columnIndex": 1,
+          "content": "ID: 676, LA(Vorlaeufiger Befund) - Labor Dr. Gaertner"
+        },
+        {
+          "rowIndex": 2,
+          "columnIndex": 2,
+          "content": ""
+        },
+        {
+          "rowIndex": 2,
+          "columnIndex": 3,
+          "content": ""
+        },
+        {
+          "rowIndex": 2,
+          "columnIndex": 4,
+          "content": ""
+        },
+        {
+          "rowIndex": 2,
+          "columnIndex": 5,
+          "content": ""
+        },
+        {
+          "rowIndex": 2,
+          "columnIndex": 6,
+          "content": ""
+        },
+        {
+          "rowIndex": 3,
+          "columnIndex": 0,
+          "content": "ZINKIS"
+        },
+        {
+          "rowIndex": 3,
+          "columnIndex": 1,
+          "content": "Zink im Serum/Plasma"
+        },
+        {
+          "rowIndex": 3,
+          "columnIndex": 2,
+          "content": "0,83"
+        },
+        {
+          "rowIndex": 3,
+          "columnIndex": 3,
+          "content": ""
+        },
+        {
+          "rowIndex": 3,
+          "columnIndex": 4,
+          "content": "mg/l"
+        },
+        {
+          "rowIndex": 3,
+          "columnIndex": 5,
+          "content": ""
+        },
+        {
+          "rowIndex": 3,
+          "columnIndex": 6,
+          "content": "0.6 - 1.2"
+        },
+        {
+          "rowIndex": 4,
+          "columnIndex": 0,
+          "content": "VD25"
+        },
+        {
+          "rowIndex": 4,
+          "columnIndex": 1,
+          "content": "25-OH-Vitamin D"
+        },
+        {
+          "rowIndex": 4,
+          "columnIndex": 2,
+          "content": "64"
+        },
+        {
+          "rowIndex": 4,
+          "columnIndex": 3,
+          "content": ""
+        },
+        {
+          "rowIndex": 4,
+          "columnIndex": 4,
+          "content": "µg/l"
+        },
+        {
+          "rowIndex": 4,
+          "columnIndex": 5,
+          "content": ""
+        },
+        {
+          "rowIndex": 4,
+          "columnIndex": 6,
+          "content": "Optimaler Zielbereic..."
+        },
+        {
+          "rowIndex": 5,
+          "columnIndex": 0,
+          "content": "IGF1"
+        },
+        {
+          "rowIndex": 5,
+          "columnIndex": 1,
+          "content": "IGF-1 (Somatomedin C)"
+        },
+        {
+          "rowIndex": 5,
+          "columnIndex": 2,
+          "content": ""
+        },
+        {
+          "rowIndex": 5,
+          "columnIndex": 3,
+          "content": ""
+        },
+        {
+          "rowIndex": 5,
+          "columnIndex": 4,
+          "content": ""
+        },
+        {
+          "rowIndex": 5,
+          "columnIndex": 5,
+          "content": "FOLGT"
+        },
+        {
+          "rowIndex": 5,
+          "columnIndex": 6,
+          "content": ""
+        },
+        {
+          "rowIndex": 6,
+          "columnIndex": 0,
+          "content": "EOSTRL"
+        },
+        {
+          "rowIndex": 6,
+          "columnIndex": 1,
+          "content": "Östradiol, 17-beta-Östradiol"
+        },
+        {
+          "rowIndex": 6,
+          "columnIndex": 2,
+          "content": "32"
+        },
+        {
+          "rowIndex": 6,
+          "columnIndex": 3,
+          "content": ""
+        },
+        {
+          "rowIndex": 6,
+          "columnIndex": 4,
+          "content": "ng/l"
+        },
+        {
+          "rowIndex": 6,
+          "columnIndex": 5,
+          "content": ""
+        },
+        {
+          "rowIndex": 6,
+          "columnIndex": 6,
+          "content": "< 40"
+        },
+        {
+          "rowIndex": 7,
+          "columnIndex": 0,
+          "content": "TESTOA"
+        },
+        {
+          "rowIndex": 7,
+          "columnIndex": 1,
+          "content": "Testosteron"
+        },
+        {
+          "rowIndex": 7,
+          "columnIndex": 2,
+          "content": "539"
+        },
+        {
+          "rowIndex": 7,
+          "columnIndex": 3,
+          "content": ""
+        },
+        {
+          "rowIndex": 7,
+          "columnIndex": 4,
+          "content": "ng/dl"
+        },
+        {
+          "rowIndex": 7,
+          "columnIndex": 5,
+          "content": ""
+        },
+        {
+          "rowIndex": 7,
+          "columnIndex": 6,
+          "content": "197 - 670"
+        },
+        {
+          "rowIndex": 8,
+          "columnIndex": 0,
+          "content": "41732"
+        },
+        {
+          "rowIndex": 8,
+          "columnIndex": 1,
+          "content": "Freies Testosteron(Berechnung)"
+        },
+        {
+          "rowIndex": 8,
+          "columnIndex": 2,
+          "content": "11"
+        },
+        {
+          "rowIndex": 8,
+          "columnIndex": 3,
+          "content": ""
+        },
+        {
+          "rowIndex": 8,
+          "columnIndex": 4,
+          "content": "ng/dl"
+        },
+        {
+          "rowIndex": 8,
+          "columnIndex": 5,
+          "content": ""
+        },
+        {
+          "rowIndex": 8,
+          "columnIndex": 6,
+          "content": "> 7.2"
+        },
+        {
+          "rowIndex": 9,
+          "columnIndex": 0,
+          "content": "SHBG2"
+        },
+        {
+          "rowIndex": 9,
+          "columnIndex": 1,
+          "content": "Sex-Hormon-bindendes Globulin"
+        },
+        {
+          "rowIndex": 9,
+          "columnIndex": 2,
+          "content": "36"
+        },
+        {
+          "rowIndex": 9,
+          "columnIndex": 3,
+          "content": ""
+        },
+        {
+          "rowIndex": 9,
+          "columnIndex": 4,
+          "content": "nmol/l"
+        },
+        {
+          "rowIndex": 9,
+          "columnIndex": 5,
+          "content": ""
+        },
+        {
+          "rowIndex": 9,
+          "columnIndex": 6,
+          "content": "15 - 95"
+        },
+        {
+          "rowIndex": 10,
+          "columnIndex": 0,
+          "content": "TESSHB"
+        },
+        {
+          "rowIndex": 10,
+          "columnIndex": 1,
+          "content": "Testosteron/SHBG-Quotient FAI"
+        },
+        {
+          "rowIndex": 10,
+          "columnIndex": 2,
+          "content": "52"
+        },
+        {
+          "rowIndex": 10,
+          "columnIndex": 3,
+          "content": ""
+        },
+        {
+          "rowIndex": 10,
+          "columnIndex": 4,
+          "content": "kA"
+        },
+        {
+          "rowIndex": 10,
+          "columnIndex": 5,
+          "content": ""
+        },
+        {
+          "rowIndex": 10,
+          "columnIndex": 6,
+          "content": "26 - 107"
+        },
+        {
+          "rowIndex": 11,
+          "columnIndex": 0,
+          "content": "****"
+        },
+        {
+          "rowIndex": 11,
+          "columnIndex": 1,
+          "content": "ID: 73892979, LG(Endbefund) - Labor Dr. Gaertner"
+        },
+        {
+          "rowIndex": 11,
+          "columnIndex": 2,
+          "content": ""
+        },
+        {
+          "rowIndex": 11,
+          "columnIndex": 3,
+          "content": ""
+        },
+        {
+          "rowIndex": 11,
+          "columnIndex": 4,
+          "content": ""
+        },
+        {
+          "rowIndex": 11,
+          "columnIndex": 5,
+          "content": ""
+        },
+        {
+          "rowIndex": 11,
+          "columnIndex": 6,
+          "content": ""
+        },
+        {
+          "rowIndex": 12,
+          "columnIndex": 0,
+          "content": "GLYKOH"
+        },
+        {
+          "rowIndex": 12,
+          "columnIndex": 1,
+          "content": "HBA1c"
+        },
+        {
+          "rowIndex": 12,
+          "columnIndex": 2,
+          "content": "27,90"
+        },
+        {
+          "rowIndex": 12,
+          "columnIndex": 3,
+          "content": ""
+        },
+        {
+          "rowIndex": 12,
+          "columnIndex": 4,
+          "content": "mmol/mol"
+        },
+        {
+          "rowIndex": 12,
+          "columnIndex": 5,
+          "content": ""
+        },
+        {
+          "rowIndex": 12,
+          "columnIndex": 6,
+          "content": "< 39..."
+        },
+        {
+          "rowIndex": 13,
+          "columnIndex": 0,
+          "content": "HBA1C1"
+        },
+        {
+          "rowIndex": 13,
+          "columnIndex": 1,
+          "content": "HBA1c"
+        },
+        {
+          "rowIndex": 13,
+          "columnIndex": 2,
+          "content": "4,70"
+        },
+        {
+          "rowIndex": 13,
+          "columnIndex": 3,
+          "content": ""
+        },
+        {
+          "rowIndex": 13,
+          "columnIndex": 4,
+          "content": "%"
+        },
+        {
+          "rowIndex": 13,
+          "columnIndex": 5,
+          "content": ""
+        },
+        {
+          "rowIndex": 13,
+          "columnIndex": 6,
+          "content": "< 5.7"
+        },
+        {
+          "rowIndex": 14,
+          "columnIndex": 0,
+          "content": "APSE"
+        },
+        {
+          "rowIndex": 14,
+          "columnIndex": 1,
+          "content": "AP"
+        },
+        {
+          "rowIndex": 14,
+          "columnIndex": 2,
+          "content": "33"
+        },
+        {
+          "rowIndex": 14,
+          "columnIndex": 3,
+          "content": "-"
+        },
+        {
+          "rowIndex": 14,
+          "columnIndex": 4,
+          "content": "U/l"
+        },
+        {
+          "rowIndex": 14,
+          "columnIndex": 5,
+          "content": ""
+        },
+        {
+          "rowIndex": 14,
+          "columnIndex": 6,
+          "content": "40 - 129"
+        },
+        {
+          "rowIndex": 15,
+          "columnIndex": 0,
+          "content": "GOTSE"
+        },
+        {
+          "rowIndex": 15,
+          "columnIndex": 1,
+          "content": "GOT"
+        },
+        {
+          "rowIndex": 15,
+          "columnIndex": 2,
+          "content": "34"
+        },
+        {
+          "rowIndex": 15,
+          "columnIndex": 3,
+          "content": ""
+        },
+        {
+          "rowIndex": 15,
+          "columnIndex": 4,
+          "content": "U/l"
+        },
+        {
+          "rowIndex": 15,
+          "columnIndex": 5,
+          "content": ""
+        },
+        {
+          "rowIndex": 15,
+          "columnIndex": 6,
+          "content": "< 50"
+        },
+        {
+          "rowIndex": 16,
+          "columnIndex": 0,
+          "content": "GGTSE"
+        },
+        {
+          "rowIndex": 16,
+          "columnIndex": 1,
+          "content": "GGT"
+        },
+        {
+          "rowIndex": 16,
+          "columnIndex": 2,
+          "content": "14"
+        },
+        {
+          "rowIndex": 16,
+          "columnIndex": 3,
+          "content": ""
+        },
+        {
+          "rowIndex": 16,
+          "columnIndex": 4,
+          "content": "U/l"
+        },
+        {
+          "rowIndex": 16,
+          "columnIndex": 5,
+          "content": ""
+        },
+        {
+          "rowIndex": 16,
+          "columnIndex": 6,
+          "content": "< 60"
+        },
+        {
+          "rowIndex": 17,
+          "columnIndex": 0,
+          "content": "GPTSE"
+        },
+        {
+          "rowIndex": 17,
+          "columnIndex": 1,
+          "content": "GPT"
+        },
+        {
+          "rowIndex": 17,
+          "columnIndex": 2,
+          "content": "28"
+        },
+        {
+          "rowIndex": 17,
+          "columnIndex": 3,
+          "content": ""
+        },
+        {
+          "rowIndex": 17,
+          "columnIndex": 4,
+          "content": "U/l"
+        },
+        {
+          "rowIndex": 17,
+          "columnIndex": 5,
+          "content": ""
+        },
+        {
+          "rowIndex": 17,
+          "columnIndex": 6,
+          "content": "< 50"
+        },
+        {
+          "rowIndex": 18,
+          "columnIndex": 0,
+          "content": "NASE"
+        },
+        {
+          "rowIndex": 18,
+          "columnIndex": 1,
+          "content": "Natrium"
+        },
+        {
+          "rowIndex": 18,
+          "columnIndex": 2,
+          "content": "141"
+        },
+        {
+          "rowIndex": 18,
+          "columnIndex": 3,
+          "content": ""
+        },
+        {
+          "rowIndex": 18,
+          "columnIndex": 4,
+          "content": "mmol/l"
+        },
+        {
+          "rowIndex": 18,
+          "columnIndex": 5,
+          "content": ""
+        },
+        {
+          "rowIndex": 18,
+          "columnIndex": 6,
+          "content": "136 - 145"
+        },
+        {
+          "rowIndex": 19,
+          "columnIndex": 0,
+          "content": "K"
+        },
+        {
+          "rowIndex": 19,
+          "columnIndex": 1,
+          "content": "Kalium"
+        },
+        {
+          "rowIndex": 19,
+          "columnIndex": 2,
+          "content": "3,84"
+        },
+        {
+          "rowIndex": 19,
+          "columnIndex": 3,
+          "content": ""
+        },
+        {
+          "rowIndex": 19,
+          "columnIndex": 4,
+          "content": "mmol/l"
+        },
+        {
+          "rowIndex": 19,
+          "columnIndex": 5,
+          "content": ""
+        },
+        {
+          "rowIndex": 19,
+          "columnIndex": 6,
+          "content": "3.5 - 5.1..."
+        },
+        {
+          "rowIndex": 20,
+          "columnIndex": 0,
+          "content": "CA"
+        },
+        {
+          "rowIndex": 20,
+          "columnIndex": 1,
+          "content": "Calcium"
+        },
+        {
+          "rowIndex": 20,
+          "columnIndex": 2,
+          "content": "2,25"
+        },
+        {
+          "rowIndex": 20,
+          "columnIndex": 3,
+          "content": ""
+        },
+        {
+          "rowIndex": 20,
+          "columnIndex": 4,
+          "content": "mmol/l"
+        },
+        {
+          "rowIndex": 20,
+          "columnIndex": 5,
+          "content": ""
+        },
+        {
+          "rowIndex": 20,
+          "columnIndex": 6,
+          "content": "2.15 - 2.5"
+        },
+        {
+          "rowIndex": 21,
+          "columnIndex": 0,
+          "content": "HSTSE"
+        },
+        {
+          "rowIndex": 21,
+          "columnIndex": 1,
+          "content": "Harnstoff"
+        },
+        {
+          "rowIndex": 21,
+          "columnIndex": 2,
+          "content": "47"
+        },
+        {
+          "rowIndex": 21,
+          "columnIndex": 3,
+          "content": ""
+        },
+        {
+          "rowIndex": 21,
+          "columnIndex": 4,
+          "content": "mg/dl"
+        },
+        {
+          "rowIndex": 21,
+          "columnIndex": 5,
+          "content": ""
+        },
+        {
+          "rowIndex": 21,
+          "columnIndex": 6,
+          "content": "17 - 49..."
+        },
+        {
+          "rowIndex": 22,
+          "columnIndex": 0,
+          "content": "KREAJ2"
+        },
+        {
+          "rowIndex": 22,
+          "columnIndex": 1,
+          "content": "Creatinin (Jaffé)"
+        },
+        {
+          "rowIndex": 22,
+          "columnIndex": 2,
+          "content": "1,11"
+        },
+        {
+          "rowIndex": 22,
+          "columnIndex": 3,
+          "content": ""
+        },
+        {
+          "rowIndex": 22,
+          "columnIndex": 4,
+          "content": "mg/dl"
+        },
+        {
+          "rowIndex": 22,
+          "columnIndex": 5,
+          "content": ""
+        },
+        {
+          "rowIndex": 22,
+          "columnIndex": 6,
+          "content": "0.67 - 1.13"
+        },
+        {
+          "rowIndex": 23,
+          "columnIndex": 0,
+          "content": "MDRD-F"
+        },
+        {
+          "rowIndex": 23,
+          "columnIndex": 1,
+          "content": "GFR (MDRD)"
+        },
+        {
+          "rowIndex": 23,
+          "columnIndex": 2,
+          "content": "74,14"
+        },
+        {
+          "rowIndex": 23,
+          "columnIndex": 3,
+          "content": ""
+        },
+        {
+          "rowIndex": 23,
+          "columnIndex": 4,
+          "content": "ml/min"
+        },
+        {
+          "rowIndex": 23,
+          "columnIndex": 5,
+          "content": ""
+        },
+        {
+          "rowIndex": 23,
+          "columnIndex": 6,
+          "content": "> 60"
+        },
+        {
+          "rowIndex": 24,
+          "columnIndex": 0,
+          "content": "GFR60"
+        },
+        {
+          "rowIndex": 24,
+          "columnIndex": 1,
+          "content": "Hinweis GFR (MDRD)"
+        },
+        {
+          "rowIndex": 24,
+          "columnIndex": 2,
+          "content": ""
+        },
+        {
+          "rowIndex": 24,
+          "columnIndex": 3,
+          "content": ""
+        },
+        {
+          "rowIndex": 24,
+          "columnIndex": 4,
+          "content": ""
+        },
+        {
+          "rowIndex": 24,
+          "columnIndex": 5,
+          "content": ""
+        },
+        {
+          "rowIndex": 24,
+          "columnIndex": 6,
+          "content": ""
+        },
+        {
+          "rowIndex": 25,
+          "columnIndex": 0,
+          "content": "Hsre"
+        },
+        {
+          "rowIndex": 25,
+          "columnIndex": 1,
+          "content": "Harnsäure"
+        },
+        {
+          "rowIndex": 25,
+          "columnIndex": 2,
+          "content": "3,99"
+        },
+        {
+          "rowIndex": 25,
+          "columnIndex": 3,
+          "content": ""
+        },
+        {
+          "rowIndex": 25,
+          "columnIndex": 4,
+          "content": "mg/dl"
+        },
+        {
+          "rowIndex": 25,
+          "columnIndex": 5,
+          "content": ""
+        },
+        {
+          "rowIndex": 25,
+          "columnIndex": 6,
+          "content": "3.4 - 7"
+        },
+        {
+          "rowIndex": 26,
+          "columnIndex": 0,
+          "content": "BILGSE"
+        },
+        {
+          "rowIndex": 26,
+          "columnIndex": 1,
+          "content": "Bilirubin gesamt"
+        },
+        {
+          "rowIndex": 26,
+          "columnIndex": 2,
+          "content": "0,91"
+        },
+        {
+          "rowIndex": 26,
+          "columnIndex": 3,
+          "content": ""
+        },
+        {
+          "rowIndex": 26,
+          "columnIndex": 4,
+          "content": "mg/dl"
+        },
+        {
+          "rowIndex": 26,
+          "columnIndex": 5,
+          "content": ""
+        },
+        {
+          "rowIndex": 26,
+          "columnIndex": 6,
+          "content": "0.1 - 1.2"
+        },
+        {
+          "rowIndex": 27,
+          "columnIndex": 0,
+          "content": "SGlu"
+        },
+        {
+          "rowIndex": 27,
+          "columnIndex": 1,
+          "content": "Glucose"
+        },
+        {
+          "rowIndex": 27,
+          "columnIndex": 2,
+          "content": "55"
+        },
+        {
+          "rowIndex": 27,
+          "columnIndex": 3,
+          "content": "-"
+        },
+        {
+          "rowIndex": 27,
+          "columnIndex": 4,
+          "content": "mg/dl"
+        },
+        {
+          "rowIndex": 27,
+          "columnIndex": 5,
+          "content": ""
+        },
+        {
+          "rowIndex": 27,
+          "columnIndex": 6,
+          "content": "74 - 106..."
+        },
+        {
+          "rowIndex": 28,
+          "columnIndex": 0,
+          "content": "LIPSE"
+        },
+        {
+          "rowIndex": 28,
+          "columnIndex": 1,
+          "content": "Lipase"
+        },
+        {
+          "rowIndex": 28,
+          "columnIndex": 2,
+          "content": "44"
+        },
+        {
+          "rowIndex": 28,
+          "columnIndex": 3,
+          "content": ""
+        },
+        {
+          "rowIndex": 28,
+          "columnIndex": 4,
+          "content": "U/l"
+        },
+        {
+          "rowIndex": 28,
+          "columnIndex": 5,
+          "content": ""
+        },
+        {
+          "rowIndex": 28,
+          "columnIndex": 6,
+          "content": "13 - 60"
+        },
+        {
+          "rowIndex": 29,
+          "columnIndex": 0,
+          "content": "AmySE"
+        },
+        {
+          "rowIndex": 29,
+          "columnIndex": 1,
+          "content": "Amylase i.S."
+        },
+        {
+          "rowIndex": 29,
+          "columnIndex": 2,
+          "content": "46"
+        },
+        {
+          "rowIndex": 29,
+          "columnIndex": 3,
+          "content": ""
+        },
+        {
+          "rowIndex": 29,
+          "columnIndex": 4,
+          "content": "U/l"
+        },
+        {
+          "rowIndex": 29,
+          "columnIndex": 5,
+          "content": ""
+        },
+        {
+          "rowIndex": 29,
+          "columnIndex": 6,
+          "content": "13 - 53"
+        },
+        {
+          "rowIndex": 30,
+          "columnIndex": 0,
+          "content": "LGVU"
+        },
+        {
+          "rowIndex": 30,
+          "columnIndex": 1,
+          "content": "Vollblut unzentrifugiert"
+        },
+        {
+          "rowIndex": 30,
+          "columnIndex": 2,
+          "content": ""
+        },
+        {
+          "rowIndex": 30,
+          "columnIndex": 3,
+          "content": ""
+        },
+        {
+          "rowIndex": 30,
+          "columnIndex": 4,
+          "content": ""
+        },
+        {
+          "rowIndex": 30,
+          "columnIndex": 5,
+          "content": ""
+        },
+        {
+          "rowIndex": 30,
+          "columnIndex": 6,
+          "content": ""
+        }
+      ]
+    }
+  ]
+}

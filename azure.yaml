@@ -1,4 +1,7 @@
-# azd project definition for the Withings token broker.
+# azd project definition for the Withings token broker and the bloodwork
+# tracking function. Both are independent Function Apps provisioned by the
+# same infra/main.bicep -- see that file's comments for why they share one
+# template instead of two.
 # https://learn.microsoft.com/azure/developer/azure-developer-cli/azd-schema
 name: ghd-withings-broker
 metadata:
@@ -7,4 +10,8 @@ services:
   broker:
     project: ./broker
     language: js
+    host: function
+  bloodwork:
+    project: ./bloodwork
+    language: dotnet-isolated
     host: function

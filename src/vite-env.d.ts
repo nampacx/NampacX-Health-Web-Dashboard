@@ -10,6 +10,8 @@ interface ImportMetaEnv {
   readonly VITE_WITHINGS_REDIRECT_URI?: string
   /** Set to "1" to append mode=demo to the authorize URL. */
   readonly VITE_WITHINGS_DEMO?: string
+  /** Base URL of the bloodwork-tracking Azure Function, e.g. https://<app>.azurewebsites.net/api */
+  readonly VITE_BLOODWORK_API_URL?: string
 }
 
 interface ImportMeta {
