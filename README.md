@@ -1,4 +1,4 @@
-# 🩺 Google Health Web Dashboard
+# 🩺 NampacX Health Dashboard
 
 A little React + Vite dashboard that shows you your own health data — activity, sleep stages, and
 body-composition weigh-ins — in one place. 📊
