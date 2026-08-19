@@ -1577,3 +1577,123 @@ details[open] > .exercise-day-summary::before {
   border-color: var(--warn-border);
   color: var(--text);
 }
+
+/* Bloodwork */
+.bloodwork-upload {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.bloodwork-upload h2 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.bloodwork-upload p {
+  margin: 0;
+}
+
+.bloodwork-jobs {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.bloodwork-job {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.85rem;
+}
+
+.bloodwork-job-status-pending,
+.bloodwork-job-status-processing {
+  background: var(--warn-bg);
+  border-color: var(--warn-border);
+  color: var(--text);
+}
+
+.bloodwork-job-status-failed {
+  background: var(--error-bg);
+  border-color: var(--error-border);
+  color: var(--text);
+}
+
+.bloodwork-job-meta {
+  font-size: 0.8rem;
+}
+
+.bloodwork-report {
+  list-style: none;
+}
+
+.bloodwork-report .record-head {
+  justify-content: space-between;
+}
+
+.bloodwork-report h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.bloodwork-table-scroll {
+  overflow-x: auto;
+  margin-top: 10px;
+}
+
+.bloodwork-table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 0.85rem;
+}
+
+.bloodwork-table th,
+.bloodwork-table td {
+  padding: 6px 10px;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+.bloodwork-table thead th {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.bloodwork-table tbody th {
+  font-weight: 500;
+  white-space: normal;
+}
+
+.bloodwork-table .num {
+  font-variant-numeric: tabular-nums;
+}
+
+.bloodwork-row-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.bloodwork-cell-input {
+  width: 100%;
+  min-width: 90px;
+  font: inherit;
+  font-size: 0.85rem;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 4px 7px;
+}
+
+.bloodwork-corrected-pill {
+  margin-left: 8px;
+  vertical-align: middle;
+}

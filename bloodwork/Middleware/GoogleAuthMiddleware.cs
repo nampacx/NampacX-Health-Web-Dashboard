@@ -36,7 +36,16 @@ public sealed class GoogleAuthMiddleware(CorsService cors, GoogleTokenVerifier t
 
         if (isPreflight)
         {
-            context.GetInvocationResult().Value = new StatusCodeResult(StatusCodes.Status204NoContent);
+            // NOT StatusCodeResult(204): on Azure (confirmed on Flex Consumption,
+            // not reproducible against a local `func start`) the ASP.NET Core
+            // integration's response-conversion path for a bodyless
+            // StatusCodeResult drops every header set on HttpContext.Response
+            // beforehand, including the CORS ones just added above -- the
+            // preflight comes back a bare "204 No Content" with nothing else,
+            // which every browser then treats as a failed preflight. ObjectResult
+            // is the same shape ErrorHandlingMiddleware already uses for the 401
+            // path below, and that one reliably keeps its headers.
+            context.GetInvocationResult().Value = new ObjectResult(null) { StatusCode = StatusCodes.Status204NoContent };
             return;
         }
 

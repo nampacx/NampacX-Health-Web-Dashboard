@@ -42,6 +42,7 @@ public sealed class CorrectionFunction(ResultsRepository resultsRepository)
 
         return new OkObjectResult(new
         {
+            rowKey = updated.RowKey,
             analyse = updated.Analyse,
             bezeichnung = updated.Bezeichnung,
             ergebniswert = updated.Ergebniswert,
