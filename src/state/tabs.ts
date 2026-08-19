@@ -1,12 +1,13 @@
 import { useCallback, useState } from 'react'
 
 /** Top level: one tab per data source. */
-export const TAB_IDS = ['google', 'withings', 'technical'] as const
+export const TAB_IDS = ['google', 'withings', 'bloodwork', 'technical'] as const
 export type TabId = (typeof TAB_IDS)[number]
 
 export const TAB_LABELS: Record<TabId, string> = {
   google: 'Google Health',
   withings: 'Withings',
+  bloodwork: 'Bloodwork',
   technical: 'Technical details',
 }
 

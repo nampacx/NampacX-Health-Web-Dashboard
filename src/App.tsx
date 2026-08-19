@@ -1,5 +1,7 @@
 import { useGoogleAuth } from './auth/google/GoogleAuthContext'
 import { useWithingsAuth } from './auth/withings/WithingsAuthContext'
+import BloodworkConnect from './components/BloodworkConnect'
+import BloodworkSection from './components/BloodworkSection'
 import Dashboard from './components/Dashboard'
 import Header from './components/Header'
 import SignIn from './components/SignIn'
@@ -7,6 +9,7 @@ import Tabs, { tabButtonId, tabPanelId, type TabItem } from './components/Tabs'
 import TechnicalDetails from './components/TechnicalDetails'
 import WithingsConnect from './components/WithingsConnect'
 import WithingsSection from './components/WithingsSection'
+import { useBloodworkData } from './state/bloodworkData'
 import { useGoogleData } from './state/googleData'
 import { TAB_IDS, TAB_LABELS, useTabState, type TabId } from './state/tabs'
 import { useWithingsData } from './state/withingsData'
@@ -18,10 +21,12 @@ export default function App() {
   const withings = useWithingsAuth()
   const { visible, outcomes } = useGoogleData()
   const { groups } = useWithingsData()
+  const { resultsByDate, configured: bloodworkConfigured } = useBloodworkData()
   const [tab, setTab] = useTabState()
 
   const signedIn = google.status === 'signed-in'
   const connected = withings.status === 'connected'
+  const bloodworkReady = signedIn && bloodworkConfigured
   const anyConnected = signedIn || connected
   const bothStillLoading = google.status === 'loading' && withings.status === 'loading'
 
@@ -29,6 +34,7 @@ export default function App() {
   const badges: Partial<Record<TabId, string>> = {
     google: signedIn ? String(visible.length) : undefined,
     withings: connected ? String(groups.length) : undefined,
+    bloodwork: bloodworkReady ? String(Object.keys(resultsByDate).length) : undefined,
     technical: failedCount > 0 ? `${failedCount} !` : undefined,
   }
 
@@ -58,6 +64,14 @@ export default function App() {
           <WithingsSection />
         ) : (
           <WithingsConnect />
+        )
+      case 'bloodwork':
+        return google.status === 'loading' ? (
+          <p className="muted">Restoring Google session…</p>
+        ) : bloodworkReady ? (
+          <BloodworkSection />
+        ) : (
+          <BloodworkConnect />
         )
       case 'technical':
         return <TechnicalDetails />

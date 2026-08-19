@@ -48,6 +48,9 @@ jobs:
           VITE_WITHINGS_CLIENT_ID: ${{ vars.VITE_WITHINGS_CLIENT_ID }}
           VITE_WITHINGS_BROKER_URL: ${{ vars.VITE_WITHINGS_BROKER_URL }}
           VITE_WITHINGS_REDIRECT_URI: ${{ vars.VITE_WITHINGS_REDIRECT_URI }}
+          # Bloodwork is independent and optional too -- same posture as Withings
+          # above. Uses the Google sign-in already required, so no separate client ID.
+          VITE_BLOODWORK_API_URL: ${{ vars.VITE_BLOODWORK_API_URL }}
         run: |
           if [ -z "$VITE_GOOGLE_CLIENT_ID" ]; then
             echo "::error::Repository variable VITE_GOOGLE_CLIENT_ID is not set. Add it under Settings > Secrets and variables > Actions > Variables, otherwise the deployed site cannot sign anyone in."
@@ -55,6 +58,9 @@ jobs:
           fi
           if [ -z "$VITE_WITHINGS_CLIENT_ID" ] || [ -z "$VITE_WITHINGS_BROKER_URL" ]; then
             echo "::warning::VITE_WITHINGS_CLIENT_ID or VITE_WITHINGS_BROKER_URL is not set. Withings stays optional -- the site will build and deploy Google-only, showing a 'connect' prompt for Withings instead of failing."
+          fi
+          if [ -z "$VITE_BLOODWORK_API_URL" ]; then
+            echo "::warning::VITE_BLOODWORK_API_URL is not set. Bloodwork stays optional -- the tab will show a setup notice instead of failing the build."
           fi
           npm run build
 

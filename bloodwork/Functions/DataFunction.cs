@@ -29,6 +29,11 @@ public sealed class DataFunction(ResultsRepository resultsRepository)
 
             entries.Add(new
             {
+                // RowKey, not Analyse: they diverge whenever Analyse needed
+                // sanitizing or deduping (see ResultsRepository.MakeUniqueRowKey),
+                // and RowKey is what PUT /bloodwork/data/{date}/{analyte} actually
+                // matches on -- callers must round-trip this, not analyse.
+                rowKey = entity.RowKey,
                 analyse = entity.Analyse,
                 bezeichnung = entity.Bezeichnung,
                 ergebniswert = entity.Ergebniswert,
