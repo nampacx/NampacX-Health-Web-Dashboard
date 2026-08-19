@@ -13,5 +13,5 @@ services:
     host: function
   bloodwork:
     project: ./bloodwork
-    language: dotnet-isolated
+    language: dotnet
     host: function
