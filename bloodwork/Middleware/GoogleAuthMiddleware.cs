@@ -36,16 +36,18 @@ public sealed class GoogleAuthMiddleware(CorsService cors, GoogleTokenVerifier t
 
         if (isPreflight)
         {
-            // NOT StatusCodeResult(204): on Azure (confirmed on Flex Consumption,
-            // not reproducible against a local `func start`) the ASP.NET Core
-            // integration's response-conversion path for a bodyless
-            // StatusCodeResult drops every header set on HttpContext.Response
-            // beforehand, including the CORS ones just added above -- the
-            // preflight comes back a bare "204 No Content" with nothing else,
-            // which every browser then treats as a failed preflight. ObjectResult
-            // is the same shape ErrorHandlingMiddleware already uses for the 401
-            // path below, and that one reliably keeps its headers.
-            context.GetInvocationResult().Value = new ObjectResult(null) { StatusCode = StatusCodes.Status204NoContent };
+            // NOT a 204 (confirmed on Azure's real Flex Consumption app, not
+            // reproducible against a local `func start`): a bodyless 204
+            // response -- regardless of which IActionResult produces it --
+            // comes back over the wire with every header set on
+            // HttpContext.Response stripped, including the CORS ones just
+            // added above, so the preflight fails and the whole API becomes
+            // unreachable from a browser. HTTP 204 forbids a body by spec, so
+            // once the status is 204 nothing can carry a body through and this
+            // can't be fixed by changing the result type. A 2xx with an actual
+            // body is what ErrorHandlingMiddleware's (working) error responses
+            // all have in common, so preflight gets a trivial one too.
+            context.GetInvocationResult().Value = new ObjectResult(new { }) { StatusCode = StatusCodes.Status200OK };
             return;
         }
 
