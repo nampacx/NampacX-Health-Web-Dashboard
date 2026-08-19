@@ -85,8 +85,9 @@ public sealed class ResultsRepository([FromKeyedServices("results")] TableClient
     /// Table Storage RowKeys can't contain a forward slash, backslash, hash,
     /// question mark, or control characters; this is unvalidated OCR output,
     /// so sanitize defensively rather than trust it. A repeated code within
-    /// one document (e.g. a re-test) gets a #2, #3 suffix rather than
-    /// silently overwriting the earlier value.
+    /// one document (e.g. a re-test) gets a -2, -3 suffix rather than
+    /// silently overwriting the earlier value -- '-' rather than '#' since
+    /// '#' is itself one of the characters just sanitized out above.
     /// </summary>
     private static string MakeUniqueRowKey(string analyse, HashSet<string> seen)
     {
@@ -104,7 +105,7 @@ public sealed class ResultsRepository([FromKeyedServices("results")] TableClient
         var suffix = 2;
         while (!seen.Add(candidate))
         {
-            candidate = sanitized + "#" + suffix;
+            candidate = sanitized + "-" + suffix;
             suffix++;
         }
         return candidate;
