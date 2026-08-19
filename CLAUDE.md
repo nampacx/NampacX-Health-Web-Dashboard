@@ -445,17 +445,20 @@ both emits two `Access-Control-Allow-Origin` headers and browsers reject the res
 
 ## Deploy
 
-Two independent workflows, matching the two independent providers.
+Two workflows, not three, even though there are three providers: the broker and bloodwork Function
+Apps share one `infra/main.bicep` and are provisioned together by a single `azd up`, so they share a
+single deploy workflow too — splitting it in two just meant two runs (and two chances to race each
+other) for any change touching shared infra.
 
 - **SPA → GitHub Pages** (`.github/workflows/deploy-pages.yml`), on every push to `main`.
   `VITE_GOOGLE_CLIENT_ID` must be a repository **Variable** (not a secret) and is required — the
-  build fails without it. The Withings variables are optional and only warn. The base path is
-  handled automatically: `configure-pages` emits `base_path` → `VITE_BASE_PATH` → normalized into
-  Vite's `base` in `vite.config.ts`.
+  build fails without it. The Withings and bloodwork variables are optional and only warn. The base
+  path is handled automatically: `configure-pages` emits `base_path` → `VITE_BASE_PATH` →
+  normalized into Vite's `base` in `vite.config.ts`.
 
-- **Broker → Azure** (`.github/workflows/deploy-function.yml`), on pushes touching `broker/`,
-  `infra/`, or `azure.yaml`. Authenticates by OIDC federated credential (no publish profile). Also
-  runnable locally with `azd up`.
+- **Broker + bloodwork → Azure** (`.github/workflows/deploy-azure-functions.yml`), on pushes
+  touching `broker/`, `bloodwork/`, `infra/`, or `azure.yaml`. Authenticates by OIDC federated
+  credential (no publish profile). Also runnable locally with `azd up`.
 
 `infra/main.bicep` provisions the Function App (Flex Consumption, Node 22, scale-to-zero), storage,
 Application Insights, and a Key Vault holding the Withings `client_secret`. Two things there are

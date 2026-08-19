@@ -116,8 +116,10 @@ without `--purge`.
 
 ### 4. CI (optional)
 
-[.github/workflows/deploy-function.yml](../.github/workflows/deploy-function.yml) redeploys on any
-push touching `broker/`, `infra/`, or `azure.yaml`. It authenticates via OIDC federated credentials —
+[.github/workflows/deploy-azure-functions.yml](../.github/workflows/deploy-azure-functions.yml)
+redeploys on any push touching `broker/`, `bloodwork/`, `infra/`, or `azure.yaml` (it deploys both
+Function Apps together, since they share one `infra/main.bicep`). It authenticates via OIDC
+federated credentials —
 no publish profile, no long-lived secret in GitHub. Needs, as repo secrets:
 `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`, `WITHINGS_CLIENT_SECRET`; and as repo
 variables: `AZURE_LOCATION`, `WITHINGS_CLIENT_ID`, `WITHINGS_ALLOWED_ORIGINS`,

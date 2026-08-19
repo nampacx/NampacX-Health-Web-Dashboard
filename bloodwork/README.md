@@ -103,7 +103,7 @@ constructor-injection boundary, and `LayoutParser` is tested against a real capt
 
 Provisioned by the shared `infra/main.bicep` alongside `broker/`'s resources (own
 storage account, own Flex Consumption plan, plus a Document Intelligence resource),
-deployed by `.github/workflows/deploy-bloodwork-function.yml` via `azd up`. See that
+deployed by `.github/workflows/deploy-azure-functions.yml` via `azd up`. See that
 file and `infra/main.bicep` for the resource list. Document Intelligence auth in
 Azure uses the Function App's own system-assigned managed identity (`Cognitive
 Services User` role) — no key is stored anywhere in the deployed app settings.

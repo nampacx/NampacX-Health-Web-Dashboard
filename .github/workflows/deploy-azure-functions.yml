@@ -1,14 +1,26 @@
-name: Deploy bloodwork tracking function
+name: Deploy Azure Functions
 
-# `azd up` provisions and deploys the FULL infra/main.bicep template, which
-# also defines the Withings broker's resources (see that file) -- so every
-# run of this workflow re-applies both services' infrastructure, not just
-# bloodwork's. That's why its required parameters below cover both.
+# Single workflow for both Function Apps this repo provisions -- the Withings
+# token broker (broker/) and the bloodwork tracking function (bloodwork/).
+# They used to be two separate workflows (deploy-function.yml and
+# deploy-bloodwork-function.yml), each running its own `azd up`. That was
+# never actually independent: infra/main.bicep provisions BOTH services in
+# one template, so every run of either workflow already re-applied both
+# services' infrastructure and re-deployed both Function Apps regardless of
+# which one's files changed. Two workflows just meant two `azd up` runs for
+# any change touching infra/main.bicep or azure.yaml, serialized against each
+# other through a shared concurrency group -- and, as of the bicep changes in
+# PR #57 (bloodwork's CORS fix) and PR #59 (bloodwork's queue-encoding fix),
+# a second `azd up` shortly after the first was exactly what produced a
+# RoleAssignmentExists failure: a role assignment created live via `az role
+# assignment create` while diagnosing production, colliding with the same
+# assignment bicep tries to declare on the next run. One workflow, one `azd
+# up`, removes the redundant second run entirely.
 
 on:
   push:
     branches: [main]
-    paths: ['bloodwork/**', 'infra/**', 'azure.yaml']
+    paths: ['broker/**', 'bloodwork/**', 'infra/**', 'azure.yaml']
   workflow_dispatch:
 
 permissions:
@@ -16,10 +28,10 @@ permissions:
   contents: read
 
 concurrency:
-  # Shared with deploy-function.yml: both workflows run `azd up` against the
-  # same resource group/template, so they must not run concurrently even
-  # though each individual deployment is idempotent.
-  group: azd-deploy-production
+  # No longer shared across two workflow files -- only this one runs `azd up`
+  # against the resource group now -- but still serialized against itself so
+  # two pushes in quick succession don't race the same deployment.
+  group: azd-deploy
   cancel-in-progress: false
 
 jobs:
@@ -32,6 +44,11 @@ jobs:
 
       - name: Install azd
         uses: Azure/setup-azd@v2
+
+      - name: Set up Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
 
       - name: Set up .NET
         uses: actions/setup-dotnet@v4
@@ -51,13 +68,6 @@ jobs:
       - name: Provision and deploy
         run: azd up --no-prompt
         env:
-          # Must match the azd environment the live site's resources actually
-          # live in (rg-hlth-dshbrd-dev, azd env "dev" -- see .azure/config.json
-          # and the VITE_WITHINGS_BROKER_URL repo variable, which points at its
-          # func-*-givd4mxbc6iqq hosts). This was "production" until 2026-08-19,
-          # which silently provisioned and deployed to an unused rg-production
-          # instead -- the real app never received deploys and crash-looped on
-          # a months-old build.
           AZURE_ENV_NAME: dev
           # main.bicep is resourceGroup-scoped (targetScope = 'resourceGroup'),
           # so azd needs to be told which resource group to deploy into -- by
@@ -65,18 +75,13 @@ jobs:
           # The real one, rg-hlth-dshbrd-dev, is a one-off name set locally via
           # `azd env set AZURE_RESOURCE_GROUP` when this was first provisioned
           # (recorded only in the gitignored .azure/dev/.env, never in source
-          # control), so CI never knew about it and provisioned rg-dev instead
-          # on 2026-08-19 -- a second unwanted duplicate environment. See
-          # https://learn.microsoft.com/azure/developer/azure-developer-cli/resource-group-scoped-deployments.
+          # control), so CI has to be told explicitly.
           AZURE_RESOURCE_GROUP: rg-hlth-dshbrd-dev
           AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
           AZURE_LOCATION: ${{ vars.AZURE_LOCATION }}
-          GOOGLE_CLIENT_ID: ${{ vars.GOOGLE_CLIENT_ID }}
-          BLOODWORK_ALLOWED_ORIGINS: ${{ vars.BLOODWORK_ALLOWED_ORIGINS }}
-          # Required by the broker's bicep parameters even though this
-          # workflow doesn't touch broker/ -- see the note at the top of
-          # this file.
           WITHINGS_CLIENT_ID: ${{ vars.WITHINGS_CLIENT_ID }}
           WITHINGS_CLIENT_SECRET: ${{ secrets.WITHINGS_CLIENT_SECRET }}
           ALLOWED_ORIGINS: ${{ vars.WITHINGS_ALLOWED_ORIGINS }}
           ALLOWED_REDIRECT_URIS: ${{ vars.WITHINGS_ALLOWED_REDIRECT_URIS }}
+          GOOGLE_CLIENT_ID: ${{ vars.GOOGLE_CLIENT_ID }}
+          BLOODWORK_ALLOWED_ORIGINS: ${{ vars.BLOODWORK_ALLOWED_ORIGINS }}
