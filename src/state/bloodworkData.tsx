@@ -11,6 +11,7 @@ import {
 import {
   BloodworkApiError,
   correctResult,
+  deleteReport,
   fileExtensionFor,
   getJobStatus,
   listResults,
@@ -34,10 +35,20 @@ interface BloodworkDataState {
   /** False when VITE_BLOODWORK_API_URL is unset -- the feature is entirely optional. */
   configured: boolean
   resultsByDate: BloodworkResultsByDate
+  /** The server capped the response; older reports exist but were not returned. */
+  truncated: boolean
   loading: boolean
   error: string | null
   loadedAt: Date | null
   reload: () => void
+  /**
+   * True when the narrow bloodwork token could not be minted in the background
+   * -- almost always a blocked popup, since the scope itself was granted at
+   * sign-in. `authorize` retries it from a real click, which is the one context
+   * a browser will always allow the popup in.
+   */
+  needsAuthorization: boolean
+  authorize: () => Promise<void>
   /** Uploads made this session, newest first. Cleared on sign-out, not persisted. */
   jobs: BloodworkJob[]
   upload: (file: File) => Promise<void>
@@ -46,19 +57,24 @@ interface BloodworkDataState {
   correct: (reportDate: string, analyte: string, patch: BloodworkCorrectionPatch) => Promise<void>
   correcting: boolean
   correctError: string | null
+  remove: (reportDate: string) => Promise<void>
+  removing: string | null
+  removeError: string | null
 }
 
 const BloodworkDataContext = createContext<BloodworkDataState | null>(null)
 
 export function BloodworkDataProvider({ children }: { children: ReactNode }) {
-  const { status, getAccessToken } = useGoogleAuth()
+  const { status, getIdentityToken } = useGoogleAuth()
   const apiBaseUrl = import.meta.env.VITE_BLOODWORK_API_URL?.trim() || null
   const configured = apiBaseUrl !== null
 
   const [resultsByDate, setResultsByDate] = useState<BloodworkResultsByDate>({})
+  const [truncated, setTruncated] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [loadedAt, setLoadedAt] = useState<Date | null>(null)
+  const [needsAuthorization, setNeedsAuthorization] = useState(false)
 
   const [jobs, setJobs] = useState<BloodworkJob[]>([])
   const [uploading, setUploading] = useState(false)
@@ -66,6 +82,9 @@ export function BloodworkDataProvider({ children }: { children: ReactNode }) {
 
   const [correcting, setCorrecting] = useState(false)
   const [correctError, setCorrectError] = useState<string | null>(null)
+
+  const [removing, setRemoving] = useState<string | null>(null)
+  const [removeError, setRemoveError] = useState<string | null>(null)
 
   // Guards against a slow earlier request overwriting a newer result.
   const requestId = useRef(0)
@@ -77,18 +96,43 @@ export function BloodworkDataProvider({ children }: { children: ReactNode }) {
     pollTimers.current.clear()
   }, [])
 
+  /**
+   * Every call into the API goes through here, so there is exactly one place
+   * that decides what token bloodwork is allowed to send. Returning null rather
+   * than the Google Health token on failure is the whole point: falling back
+   * would hand a full health grant to a backend that needs a subject id.
+   *
+   * `interactive` is false for everything that runs on its own -- the load
+   * effect, the poll loop -- so none of them can open a popup the user did not
+   * ask for. They read the cached token or set `needsAuthorization` and stop.
+   */
+  const withToken = useCallback(
+    async (interactive = false): Promise<string | null> => {
+      try {
+        const token = await getIdentityToken({ interactive })
+        setNeedsAuthorization(false)
+        return token
+      } catch {
+        setNeedsAuthorization(true)
+        return null
+      }
+    },
+    [getIdentityToken],
+  )
+
   const load = useCallback(async () => {
     if (status !== 'signed-in' || !apiBaseUrl) return
-    const token = getAccessToken()
+    const token = await withToken()
     if (!token) return
 
     const id = ++requestId.current
     setLoading(true)
     setError(null)
     try {
-      const data = await listResults(apiBaseUrl, token)
+      const page = await listResults(apiBaseUrl, token)
       if (id !== requestId.current) return
-      setResultsByDate(data)
+      setResultsByDate(page.results)
+      setTruncated(page.truncated)
       setLoadedAt(new Date())
     } catch (err) {
       if (id !== requestId.current) return
@@ -96,7 +140,7 @@ export function BloodworkDataProvider({ children }: { children: ReactNode }) {
     } finally {
       if (id === requestId.current) setLoading(false)
     }
-  }, [status, apiBaseUrl, getAccessToken])
+  }, [status, apiBaseUrl, withToken])
 
   useEffect(() => {
     void load()
@@ -109,21 +153,34 @@ export function BloodworkDataProvider({ children }: { children: ReactNode }) {
     requestId.current++
     clearPolls()
     setResultsByDate({})
+    setTruncated(false)
     setLoadedAt(null)
     setError(null)
     setJobs([])
     setUploadError(null)
+    setRemoveError(null)
+    setNeedsAuthorization(false)
   }, [status, clearPolls])
 
   useEffect(() => clearPolls, [clearPolls])
+
+  /**
+   * Retries the token mint from a user gesture. The popup GIS opens to run it is
+   * blocked outside one, which is the usual reason the background attempt failed.
+   */
+  const authorize = useCallback(async () => {
+    const token = await withToken(true)
+    if (token) await load()
+  }, [withToken, load])
 
   const pollJob = useCallback(
     (documentId: string, attempt: number) => {
       if (attempt >= MAX_POLL_ATTEMPTS) return
       const timer = window.setTimeout(async () => {
         pollTimers.current.delete(documentId)
-        const token = getAccessToken()
-        if (!token || !apiBaseUrl) return
+        if (!apiBaseUrl) return
+        const token = await withToken()
+        if (!token) return
         try {
           const job = await getJobStatus(apiBaseUrl, token, documentId)
           setJobs((prev) => prev.map((j) => (j.documentId === documentId ? job : j)))
@@ -139,30 +196,31 @@ export function BloodworkDataProvider({ children }: { children: ReactNode }) {
       }, POLL_INTERVAL_MS)
       pollTimers.current.set(documentId, timer)
     },
-    [apiBaseUrl, getAccessToken, load],
+    [apiBaseUrl, withToken, load],
   )
 
   const upload = useCallback(
     async (file: File) => {
       if (!apiBaseUrl) return
-      const token = getAccessToken()
-      if (!token) {
-        setUploadError('Your Google session expired. Sign in again to upload.')
-        return
-      }
       if (!fileExtensionFor(file.type)) {
         setUploadError(`Unsupported file type "${file.type || 'unknown'}". Use a PDF, JPEG, or PNG.`)
+        return
+      }
+      const token = await withToken(true)
+      if (!token) {
+        setUploadError('Could not get permission to reach the bloodwork API. Try again.')
         return
       }
 
       setUploading(true)
       setUploadError(null)
       try {
-        const { documentId } = await uploadDocument({ apiBaseUrl, accessToken: token, file })
+        const { documentId } = await uploadDocument({ apiBaseUrl, identityToken: token, file })
         const now = new Date().toISOString()
         const job: BloodworkJob = {
           documentId,
           status: 'pending',
+          errorCode: null,
           errorMessage: null,
           reportDate: null,
           rowCount: null,
@@ -183,15 +241,15 @@ export function BloodworkDataProvider({ children }: { children: ReactNode }) {
         setUploading(false)
       }
     },
-    [apiBaseUrl, getAccessToken, pollJob],
+    [apiBaseUrl, withToken, pollJob],
   )
 
   const correct = useCallback(
     async (reportDate: string, rowKey: string, patch: BloodworkCorrectionPatch) => {
       if (!apiBaseUrl) return
-      const token = getAccessToken()
+      const token = await withToken(true)
       if (!token) {
-        setCorrectError('Your Google session expired. Sign in again to make corrections.')
+        setCorrectError('Could not get permission to reach the bloodwork API. Try again.')
         return
       }
 
@@ -213,17 +271,53 @@ export function BloodworkDataProvider({ children }: { children: ReactNode }) {
         setCorrecting(false)
       }
     },
-    [apiBaseUrl, getAccessToken],
+    [apiBaseUrl, withToken],
+  )
+
+  const remove = useCallback(
+    async (reportDate: string) => {
+      if (!apiBaseUrl) return
+      const token = await withToken(true)
+      if (!token) {
+        setRemoveError('Could not get permission to reach the bloodwork API. Try again.')
+        return
+      }
+
+      setRemoving(reportDate)
+      setRemoveError(null)
+      try {
+        await deleteReport(apiBaseUrl, token, reportDate)
+        // Dropped locally rather than refetched: the server has already
+        // confirmed the rows are gone, and a reload would repaint the whole
+        // table to show one card missing.
+        setResultsByDate((prev) => {
+          const next = { ...prev }
+          delete next[reportDate]
+          return next
+        })
+        // Jobs for the deleted report are gone server-side too; a status poll
+        // would now 404, so they must not stay on screen as if they existed.
+        setJobs((prev) => prev.filter((job) => job.reportDate !== reportDate))
+      } catch (err) {
+        setRemoveError(err instanceof Error ? err.message : String(err))
+      } finally {
+        setRemoving(null)
+      }
+    },
+    [apiBaseUrl, withToken],
   )
 
   const value = useMemo<BloodworkDataState>(
     () => ({
       configured,
       resultsByDate,
+      truncated,
       loading,
       error,
       loadedAt,
       reload: () => void load(),
+      needsAuthorization,
+      authorize,
       jobs,
       upload,
       uploading,
@@ -231,14 +325,20 @@ export function BloodworkDataProvider({ children }: { children: ReactNode }) {
       correct,
       correcting,
       correctError,
+      remove,
+      removing,
+      removeError,
     }),
     [
       configured,
       resultsByDate,
+      truncated,
       loading,
       error,
       loadedAt,
       load,
+      needsAuthorization,
+      authorize,
       jobs,
       upload,
       uploading,
@@ -246,6 +346,9 @@ export function BloodworkDataProvider({ children }: { children: ReactNode }) {
       correct,
       correcting,
       correctError,
+      remove,
+      removing,
+      removeError,
     ],
   )
 

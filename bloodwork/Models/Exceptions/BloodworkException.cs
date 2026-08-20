@@ -16,6 +16,14 @@ public sealed class UnauthorizedException(string message) : BloodworkException(m
 /// <summary>Google's tokeninfo endpoint was unreachable -- 502. Distinct from 401: this is not the caller's fault.</summary>
 public sealed class UpstreamAuthException(string message) : BloodworkException(message);
 
+/// <summary>
+/// The caller's token is valid, but the account behind it is not on the
+/// bloodworkUsers allowlist -- 403. Deliberately distinct from 401: the
+/// credential is fine and re-authenticating will not help, so the SPA must not
+/// treat this as an expired session and bounce the user back through sign-in.
+/// </summary>
+public sealed class ForbiddenException(string message) : BloodworkException(message);
+
 /// <summary>Unknown documentId, or no row at the given date/analyte -- 404.</summary>
 public sealed class NotFoundException(string message) : BloodworkException(message);
 
@@ -24,6 +32,17 @@ public sealed class UnsupportedMediaTypeException(string message) : BloodworkExc
 
 /// <summary>Upload exceeds the configured size limit -- 413.</summary>
 public sealed class PayloadTooLargeException(string message) : BloodworkException(message);
+
+/// <summary>
+/// The caller has spent its request allowance for the current window -- 429.
+///
+/// Every route is <c>AuthorizationLevel.Anonymous</c> behind a public URL, and
+/// authenticating a request costs an outbound call to Google, so the limit is
+/// applied before authentication rather than after: an unauthenticated flood has
+/// to be cheap to refuse, or it is an amplifier pointed at Google's tokeninfo
+/// endpoint and at this app's own per-execution bill.
+/// </summary>
+public sealed class TooManyRequestsException(string message) : BloodworkException(message);
 
 /// <summary>
 /// Startup configuration is missing or invalid -- 500 ("misconfigured") if it

@@ -51,12 +51,53 @@ public sealed class JobsRepository([FromKeyedServices("jobs")] TableClient table
             entity.RowCount = rowCount;
         }, ct);
 
-    public Task MarkFailedAsync(string documentId, string errorMessage, CancellationToken ct = default) =>
+    /// <summary>
+    /// Both halves are required, so a caller cannot record a failure without
+    /// deciding what is safe to show for it. <paramref name="errorMessage"/> is
+    /// returned to the caller verbatim and rendered -- it must be text this app
+    /// wrote, never an exception's own.
+    /// </summary>
+    public Task MarkFailedAsync(string documentId, string errorCode, string errorMessage, CancellationToken ct = default) =>
         UpdateAsync(documentId, entity =>
         {
             entity.Status = "failed";
+            entity.ErrorCode = errorCode;
             entity.ErrorMessage = errorMessage;
         }, ct);
+
+    /// <summary>
+    /// Deletes one job row, but only if it belongs to <paramref name="sub"/>, and
+    /// returns the blob it was tracking so the caller can delete that too.
+    ///
+    /// Null for a job that does not exist <i>or</i> belongs to someone else -- the
+    /// same answer for both, matching JobStatusFunction: confirming a job exists
+    /// under another account is its own information leak, and a deletion that
+    /// reported "not yours" rather than "not there" would be an existence oracle
+    /// requiring nothing but a guessed GUID.
+    /// </summary>
+    public async Task<string?> DeleteOwnedAsync(string documentId, string sub, CancellationToken ct = default)
+    {
+        BloodworkJobEntity job;
+        try
+        {
+            job = await GetAsync(documentId, ct);
+        }
+        catch (NotFoundException)
+        {
+            return null;
+        }
+
+        if (!string.Equals(job.Sub, sub, StringComparison.Ordinal))
+        {
+            return null;
+        }
+
+        // The ETag the row was read with, not ETag.All: if the processor updated
+        // the job between the read and here, this fails rather than deleting a row
+        // that has since changed underneath it.
+        await table.DeleteEntityAsync(PartitionKey, documentId, job.ETag, ct);
+        return job.BlobName;
+    }
 
     private async Task<BloodworkJobEntity> UpdateAsync(string documentId, Action<BloodworkJobEntity> mutate, CancellationToken ct)
     {

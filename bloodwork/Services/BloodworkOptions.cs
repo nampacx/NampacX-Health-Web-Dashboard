@@ -27,7 +27,26 @@ public sealed class BloodworkOptions
 
     public required long MaxUploadBytes { get; init; }
 
+    /// <summary>Requests allowed per client per <see cref="RateLimitWindow"/>, before authentication.</summary>
+    public required int RateLimitRequests { get; init; }
+
+    public required TimeSpan RateLimitWindow { get; init; }
+
+    /// <summary>
+    /// Hard ceiling on the rows a single GET /bloodwork/data may return, so the
+    /// response cannot grow without bound as a caller's history does. Hitting it
+    /// is reported as <c>truncated</c> rather than silently returning a partial
+    /// history that looks whole.
+    /// </summary>
+    public required int MaxResultRows { get; init; }
+
     public const long DefaultMaxUploadBytes = 20 * 1024 * 1024;
+
+    public const int DefaultRateLimitRequests = 120;
+
+    public const int DefaultRateLimitWindowSeconds = 60;
+
+    public const int DefaultMaxResultRows = 5000;
 
     public static BloodworkOptions Load(IConfiguration config)
     {
@@ -46,6 +65,10 @@ public sealed class BloodworkOptions
             throw new ConfigurationException($"MAX_UPLOAD_BYTES ('{maxUploadBytesSetting}') is not a valid integer.");
         }
 
+        var rateLimitRequests = PositiveInt(config, "RATE_LIMIT_REQUESTS", DefaultRateLimitRequests);
+        var rateLimitWindowSeconds = PositiveInt(config, "RATE_LIMIT_WINDOW_SECONDS", DefaultRateLimitWindowSeconds);
+        var maxResultRows = PositiveInt(config, "MAX_RESULT_ROWS", DefaultMaxResultRows);
+
         return new BloodworkOptions
         {
             GoogleClientId = Require(config, "GOOGLE_CLIENT_ID"),
@@ -56,7 +79,29 @@ public sealed class BloodworkOptions
             DocumentIntelligenceEndpoint = Require(config, "DOCUMENT_INTELLIGENCE_ENDPOINT"),
             DocumentIntelligenceKey = Trim(config["DOCUMENT_INTELLIGENCE_KEY"]),
             MaxUploadBytes = maxUploadBytes,
+            RateLimitRequests = rateLimitRequests,
+            RateLimitWindow = TimeSpan.FromSeconds(rateLimitWindowSeconds),
+            MaxResultRows = maxResultRows,
         };
+    }
+
+    /// <summary>
+    /// Zero is rejected rather than accepted as "unlimited": every one of these
+    /// settings is a safety ceiling, so a typo that reads as 0 must fail the app
+    /// to start, not quietly disable the control it configures.
+    /// </summary>
+    private static int PositiveInt(IConfiguration config, string key, int fallback)
+    {
+        var raw = config[key];
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            return fallback;
+        }
+        if (!int.TryParse(raw, out var value) || value <= 0)
+        {
+            throw new ConfigurationException($"{key} ('{raw}') is not a positive integer.");
+        }
+        return value;
     }
 
     private static string Require(IConfiguration config, string key) =>

@@ -29,6 +29,10 @@ param googleClientId string
 @description('Comma-separated browser origins allowed to call the bloodwork function.')
 param bloodworkAllowedOrigins string = 'https://mikokono.de,http://localhost:5173,http://127.0.0.1:5173'
 
+@minValue(1)
+@description('Days an uploaded lab report (PDF or scan) is kept in blob storage before it is deleted automatically. The extracted rows in bloodworkResults are what the app actually reads; the original document is only needed until parsing has succeeded and been checked. Ninety days is long enough to re-run a parse after noticing a problem, short enough that special-category health data does not accumulate for ever.')
+param bloodworkDocumentRetentionDays int = 90
+
 var resourceToken = uniqueString(subscription().id, resourceGroup().id, environmentName)
 
 // One convention for everything this template creates: <type>-<namePrefix>-<token>.
@@ -67,6 +71,10 @@ var bwDeploymentContainerName = 'app-package'
 var bwDocumentsContainerName = 'bloodwork-documents'
 var bwJobsTableName = 'bloodworkJobs'
 var bwResultsTableName = 'bloodworkResults'
+// The approval allowlist. Rows are created unapproved by the app on a new
+// account's first request; flipping Approved to true is a manual edit here --
+// there is deliberately no code path that grants access.
+var bwUsersTableName = 'bloodworkUsers'
 var bwQueueName = 'bloodwork-processing'
 
 // Confirmed against Microsoft's current built-in-role list: b7e6dc6d-...
@@ -336,6 +344,49 @@ resource bwDocumentsContainer 'Microsoft.Storage/storageAccounts/blobServices/co
   name: bwDocumentsContainerName
 }
 
+// Retention for the uploaded documents. Without this, every lab report ever
+// uploaded -- full PDFs and scans carrying a name, a date of birth and a
+// complete result set -- stayed in blob storage for ever, including the ones
+// whose parse failed, with nothing to expire them. For special-category health
+// data under GDPR Art. 9 that is a breach surface that only ever grows.
+//
+// prefixMatch is a blob path, so it starts with the container name: this rule
+// must not reach 'app-package', which holds the deployed function package and
+// would break the app if it were expired out from under it.
+//
+// This handles the passage of time. A user asking is handled by
+// DELETE /bloodwork/data/{date} (bloodwork/Functions/DeleteReportFunction.cs),
+// which removes the rows, the job and the document together.
+resource bwDocumentRetention 'Microsoft.Storage/storageAccounts/managementPolicies@2023-05-01' = {
+  parent: bwStorage
+  name: 'default'
+  properties: {
+    policy: {
+      rules: [
+        {
+          name: 'expire-uploaded-documents'
+          enabled: true
+          type: 'Lifecycle'
+          definition: {
+            filters: {
+              blobTypes: ['blockBlob']
+              prefixMatch: ['${bwDocumentsContainerName}/']
+            }
+            actions: {
+              baseBlob: {
+                delete: {
+                  daysAfterCreationGreaterThan: bloodworkDocumentRetentionDays
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+  dependsOn: [bwDocumentsContainer]
+}
+
 resource bwTableService 'Microsoft.Storage/storageAccounts/tableServices@2023-05-01' = {
   parent: bwStorage
   name: 'default'
@@ -349,6 +400,11 @@ resource bwJobsTable 'Microsoft.Storage/storageAccounts/tableServices/tables@202
 resource bwResultsTable 'Microsoft.Storage/storageAccounts/tableServices/tables@2023-05-01' = {
   parent: bwTableService
   name: bwResultsTableName
+}
+
+resource bwUsersTable 'Microsoft.Storage/storageAccounts/tableServices/tables@2023-05-01' = {
+  parent: bwTableService
+  name: bwUsersTableName
 }
 
 resource bwQueueService 'Microsoft.Storage/storageAccounts/queueServices@2023-05-01' = {

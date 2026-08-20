@@ -28,6 +28,7 @@ public sealed class JobStatusFunction(JobsRepository jobsRepository)
         {
             documentId = job.RowKey,
             status = job.Status,
+            errorCode = job.ErrorCode,
             errorMessage = job.ErrorMessage,
             reportDate = job.ReportDate,
             rowCount = job.RowCount,

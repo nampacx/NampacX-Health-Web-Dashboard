@@ -43,7 +43,10 @@ public sealed class CorrectionFunction(ResultsRepository resultsRepository)
 
         return new OkObjectResult(new
         {
-            rowKey = updated.RowKey,
+            // Stripped to the analyte half, exactly as GET /bloodwork/data
+            // returns it -- the SPA matches the row it just edited by this value
+            // (see bloodworkData.tsx), so the two responses have to agree.
+            rowKey = ResultsRepository.AnalyteKeyOf(updated.RowKey),
             analyse = updated.Analyse,
             bezeichnung = updated.Bezeichnung,
             ergebniswert = updated.Ergebniswert,
