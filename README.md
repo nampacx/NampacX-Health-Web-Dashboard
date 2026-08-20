@@ -15,9 +15,14 @@ its own OAuth flow — so it's covered separately below rather than in the provi
 
 ## 🤔 Why this exists
 
-> I was annoyed that Claude could not connect with my Google Health app, and also not with the
-> measurements from my Withings BodyFit. So the idea arose to build a web dashboard which at least
-> lets me look at the data they both collect.
+> Workouts and sleep in Google Health. Weight in Withings. Bloodwork sitting in a spreadsheet I had
+> to manually update every time I got labs done. No single place to see the whole picture — just
+> four tabs and a lot of copy-pasting.
+>
+> I'd also been reading a bunch of posts here from people who built beautiful custom dashboards for
+> their home automation setups, or for monitoring their k8s clusters at home. Cool projects — but it
+> made me wonder why nobody was doing that for their own health. If people will spend a weekend
+> dashboarding their smart lights, why not the thing that actually matters most?
 >
 > Work is still **WIP** and there are a lot of things to add and change — **but it works.** ✅
 
