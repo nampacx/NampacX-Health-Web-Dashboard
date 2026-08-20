@@ -41,6 +41,23 @@ public sealed class BloodworkJobEntity : ITableEntity
     /// <summary>Set on completion.</summary>
     public int? RowCount { get; set; }
 
-    /// <summary>Set on failure.</summary>
+    /// <summary>
+    /// Set on failure -- a stable, machine-readable reason, following
+    /// <c>ParseException.Code</c>'s pattern. Together with
+    /// <see cref="ErrorMessage"/> it replaces what used to be stored here: the
+    /// raw text of whatever exception was caught, which on the catch-all path
+    /// was typically a RequestFailedException carrying the storage or Document
+    /// Intelligence endpoint host, the service error code and its request-id
+    /// headers -- all of it persisted, returned to the caller and painted into
+    /// the UI.
+    /// </summary>
+    public string? ErrorCode { get; set; }
+
+    /// <summary>
+    /// Set on failure -- the human-readable half, and safe to display. Every
+    /// value it can hold is written by this app for the user to read: either a
+    /// LayoutParser message ("report_date_not_found" and friends, which are
+    /// genuinely actionable) or one fixed string for everything else.
+    /// </summary>
     public string? ErrorMessage { get; set; }
 }

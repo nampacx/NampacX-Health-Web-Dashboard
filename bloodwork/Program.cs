@@ -48,9 +48,25 @@ if (!string.IsNullOrWhiteSpace(appInsightsConnectionString))
 var options = BloodworkOptions.Load(builder.Configuration);
 builder.Services.AddSingleton(options);
 
-builder.Services.AddHttpClient<GoogleTokenVerifier>();
+// RemoveAllLoggers, because the tokeninfo request carries the caller's access
+// token in its query string (Google's documented form for that endpoint). On
+// .NET 9+ the default HttpClientFactory loggers redact query-string values, so
+// this is belt to that braces -- but a URL is a fragile place to keep a
+// credential, and the default is one AddHttpClientInstrumentation() or one
+// DOTNET_SYSTEM_NET_HTTP_DISABLEURIREDACTION=1 away from becoming a live leak
+// into Application Insights. Not logging the request at all does not depend on
+// a framework default staying what it is. GoogleTokenVerifier's own comments
+// already take this line about the response; this is the same instinct applied
+// to the request.
+builder.Services.AddHttpClient<GoogleTokenVerifier>().RemoveAllLoggers();
 builder.Services.AddSingleton<CorsService>();
 builder.Services.AddSingleton<LayoutParser>();
+// Both singletons for the same reason: they exist to remember something across
+// requests. GoogleTokenVerifier is a typed HttpClient and therefore transient,
+// so a cache held on the verifier itself would be thrown away after every
+// request and never once be hit.
+builder.Services.AddSingleton<TokenVerificationCache>();
+builder.Services.AddSingleton<RequestRateLimiter>();
 // Singleton, unlike the two repositories below, because GoogleAuthMiddleware
 // consumes it by constructor injection and middleware resolves its dependencies
 // outside the function invocation's own DI scope (see CallerContext's comment

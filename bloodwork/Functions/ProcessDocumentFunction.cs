@@ -62,7 +62,10 @@ public sealed class ProcessDocumentFunction(
             // will not appear on a retry. Mark failed immediately and let
             // the message be deleted normally.
             logger.LogError(ex, "Permanent parse failure for document {DocumentId} ({Code})", payload.DocumentId, ex.Code);
-            await jobsRepository.MarkFailedAsync(payload.DocumentId, ex.Message, ct);
+            // ParseException's own message is written by LayoutParser for the
+            // user to read ("report_date_not_found", "results_table_not_found")
+            // and says something they can act on. It stays exactly as it was.
+            await jobsRepository.MarkFailedAsync(payload.DocumentId, ex.Code, ex.Message, ct);
         }
         catch (Exception ex)
         {
@@ -74,9 +77,18 @@ public sealed class ProcessDocumentFunction(
             logger.LogError(ex, "Attempt {DequeueCount} failed for document {DocumentId}", queueMessage.DequeueCount, payload.DocumentId);
             if (queueMessage.DequeueCount >= MaxDequeueCount)
             {
+                // Note the contrast with the ParseException branch above. `ex`
+                // here is anything that is NOT a ParseException -- in practice a
+                // RequestFailedException from Table Storage, Blob Storage or
+                // Document Intelligence, whose Message carries the service error
+                // code, the endpoint host and the service's own request id. That
+                // used to be persisted on the job row and handed back verbatim to
+                // the caller, who saw it in the UI. It is still logged in full
+                // one line above; what leaves this process is a fixed string.
                 await jobsRepository.MarkFailedAsync(
                     payload.DocumentId,
-                    $"Gave up after {queueMessage.DequeueCount} attempts: {ex.Message}",
+                    "processing_failed",
+                    "Processing failed. Try uploading the document again.",
                     ct);
                 return;
             }

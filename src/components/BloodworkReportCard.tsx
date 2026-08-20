@@ -6,6 +6,9 @@ interface Props {
   rows: BloodworkResultRow[]
   correcting: boolean
   onCorrect: (reportDate: string, rowKey: string, patch: BloodworkCorrectionPatch) => void
+  /** True while this particular report's deletion is in flight. */
+  removing: boolean
+  onRemove: (reportDate: string) => void
 }
 
 function draftFrom(row: BloodworkResultRow): BloodworkCorrectionPatch {
@@ -19,9 +22,17 @@ function draftFrom(row: BloodworkResultRow): BloodworkCorrectionPatch {
 }
 
 /** One report date's parsed analytes, editable inline -- one row per lab code. */
-export default function BloodworkReportCard({ date, rows, correcting, onCorrect }: Props) {
+export default function BloodworkReportCard({
+  date,
+  rows,
+  correcting,
+  onCorrect,
+  removing,
+  onRemove,
+}: Props) {
   const [editingKey, setEditingKey] = useState<string | null>(null)
   const [draft, setDraft] = useState<BloodworkCorrectionPatch>({})
+  const [confirmingDelete, setConfirmingDelete] = useState(false)
 
   function startEdit(row: BloodworkResultRow) {
     setEditingKey(row.rowKey)
@@ -42,6 +53,47 @@ export default function BloodworkReportCard({ date, rows, correcting, onCorrect 
             {rows.length} {rows.length === 1 ? 'result' : 'results'}
           </span>
         </summary>
+
+        {/* Two clicks, not a window.confirm: this deletes the parsed rows AND
+            the uploaded scan behind them, and none of it is recoverable. */}
+        <div className="bloodwork-report-actions">
+          {confirmingDelete ? (
+            <>
+              <span className="muted">
+                Delete this report, its {rows.length} {rows.length === 1 ? 'result' : 'results'} and
+                the uploaded document? This cannot be undone.
+              </span>
+              <button
+                type="button"
+                className="btn btn-small btn-danger"
+                onClick={() => {
+                  setConfirmingDelete(false)
+                  onRemove(date)
+                }}
+                disabled={removing}
+              >
+                {removing ? 'Deleting…' : 'Delete permanently'}
+              </button>
+              <button
+                type="button"
+                className="btn btn-small btn-ghost"
+                onClick={() => setConfirmingDelete(false)}
+                disabled={removing}
+              >
+                Cancel
+              </button>
+            </>
+          ) : (
+            <button
+              type="button"
+              className="btn btn-small btn-ghost"
+              onClick={() => setConfirmingDelete(true)}
+              disabled={removing}
+            >
+              Delete report
+            </button>
+          )}
+        </div>
         <div className="bloodwork-table-scroll">
         <table className="bloodwork-table">
           <thead>

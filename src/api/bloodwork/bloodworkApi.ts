@@ -1,17 +1,24 @@
 /**
- * bloodwork/ Azure Function client. Every route is Authorization: Bearer
- * <Google access token> -- the SAME token the Google Health API calls use,
- * verified server-side by GoogleAuthMiddleware; there is no separate
- * bloodwork sign-in. Unlike Withings, this API uses real HTTP status codes
- * and a {error, message} JSON body (see bloodwork/Middleware/ErrorMapper.cs),
- * so response.ok is meaningful here.
+ * bloodwork/ Azure Function client.
+ *
+ * Every route is `Authorization: Bearer <token>`, verified server-side by
+ * GoogleAuthMiddleware — but **not** the token the Google Health calls use.
+ * That one carries every `googlehealth.*.readonly` scope the app requests, and
+ * this API needs an identity, not a health record. What is sent here is minted
+ * separately and scoped to `IDENTITY_SCOPES`; see `src/auth/google/googleAuth.ts`
+ * for the reasoning, and `useGoogleAuth().getIdentityToken()` for how callers
+ * get one. There is still no separate bloodwork sign-in.
+ *
+ * Unlike Withings, this API uses real HTTP status codes and a {error, message}
+ * JSON body (see bloodwork/Middleware/ErrorMapper.cs), so response.ok is
+ * meaningful here.
  */
 
 import type {
   BloodworkCorrectionPatch,
   BloodworkJob,
   BloodworkResultRow,
-  BloodworkResultsByDate,
+  BloodworkResultsPage,
 } from './types'
 
 /** Mirrors UploadFunction.cs's AllowedContentTypes. */
@@ -39,7 +46,7 @@ function trimBase(apiBaseUrl: string): string {
 async function request<T>(
   apiBaseUrl: string,
   path: string,
-  accessToken: string,
+  identityToken: string,
   init?: RequestInit,
 ): Promise<T> {
   let response: Response
@@ -48,7 +55,7 @@ async function request<T>(
       ...init,
       headers: {
         ...init?.headers,
-        Authorization: `Bearer ${accessToken}`,
+        Authorization: `Bearer ${identityToken}`,
       },
     })
   } catch (err) {
@@ -82,16 +89,16 @@ export function fileExtensionFor(contentType: string): string | undefined {
 
 export interface UploadDocumentOptions {
   apiBaseUrl: string
-  accessToken: string
+  identityToken: string
   file: File
 }
 
 export async function uploadDocument({
   apiBaseUrl,
-  accessToken,
+  identityToken,
   file,
 }: UploadDocumentOptions): Promise<{ documentId: string }> {
-  return request(apiBaseUrl, '/bloodwork/upload', accessToken, {
+  return request(apiBaseUrl, '/bloodwork/upload', identityToken, {
     method: 'POST',
     headers: { 'Content-Type': file.type },
     body: file,
@@ -100,22 +107,33 @@ export async function uploadDocument({
 
 export async function getJobStatus(
   apiBaseUrl: string,
-  accessToken: string,
+  identityToken: string,
   documentId: string,
 ): Promise<BloodworkJob> {
-  return request(apiBaseUrl, `/bloodwork/jobs/${encodeURIComponent(documentId)}`, accessToken)
+  return request(apiBaseUrl, `/bloodwork/jobs/${encodeURIComponent(documentId)}`, identityToken)
+}
+
+/** Inclusive at both ends; either half may be omitted. ISO YYYY-MM-DD. */
+export interface BloodworkDateRange {
+  from?: string
+  to?: string
 }
 
 export async function listResults(
   apiBaseUrl: string,
-  accessToken: string,
-): Promise<BloodworkResultsByDate> {
-  return request(apiBaseUrl, '/bloodwork/data', accessToken)
+  identityToken: string,
+  range?: BloodworkDateRange,
+): Promise<BloodworkResultsPage> {
+  const query = new URLSearchParams()
+  if (range?.from) query.set('from', range.from)
+  if (range?.to) query.set('to', range.to)
+  const suffix = query.size > 0 ? `?${query}` : ''
+  return request(apiBaseUrl, `/bloodwork/data${suffix}`, identityToken)
 }
 
 export async function correctResult(
   apiBaseUrl: string,
-  accessToken: string,
+  identityToken: string,
   reportDate: string,
   analyte: string,
   patch: BloodworkCorrectionPatch,
@@ -123,11 +141,25 @@ export async function correctResult(
   return request(
     apiBaseUrl,
     `/bloodwork/data/${encodeURIComponent(reportDate)}/${encodeURIComponent(analyte)}`,
-    accessToken,
+    identityToken,
     {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(patch),
     },
   )
+}
+
+/**
+ * Erases one report: its rows, the job that produced them, and the uploaded
+ * document itself. 204 on success; 404 if the date holds nothing of yours.
+ */
+export async function deleteReport(
+  apiBaseUrl: string,
+  identityToken: string,
+  reportDate: string,
+): Promise<void> {
+  return request(apiBaseUrl, `/bloodwork/data/${encodeURIComponent(reportDate)}`, identityToken, {
+    method: 'DELETE',
+  })
 }

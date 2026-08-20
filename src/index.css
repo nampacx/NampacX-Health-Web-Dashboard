@@ -234,6 +234,19 @@ code {
   background: transparent;
 }
 
+/* Irreversible actions only. Borrows the error palette rather than adding a
+   colour of its own, so "this destroys something" reads the same everywhere. */
+.btn-danger {
+  background: var(--error-bg);
+  border-color: var(--error-border);
+  font-weight: 600;
+}
+
+.btn-danger:hover:not(:disabled) {
+  border-color: var(--error-border);
+  filter: brightness(0.96);
+}
+
 .field {
   display: flex;
   flex-direction: column;
@@ -1679,6 +1692,22 @@ details[open] > .exercise-day-summary::before {
 .bloodwork-row-actions {
   display: flex;
   gap: 6px;
+}
+
+.bloodwork-report-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 0 4px;
+  font-size: 0.8rem;
+}
+
+/* Pushes the buttons to the right when the confirmation copy is present, and
+   keeps the lone "Delete report" button there too, away from the row-level
+   Edit buttons it would otherwise sit under. */
+.bloodwork-report-actions > .btn:first-child {
+  margin-left: auto;
 }
 
 .bloodwork-cell-input {

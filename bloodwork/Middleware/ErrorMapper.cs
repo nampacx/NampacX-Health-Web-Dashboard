@@ -20,7 +20,12 @@ public static class ErrorMapper
         NotFoundException e => (404, Body("not_found", e.Message)),
         PayloadTooLargeException e => (413, Body("payload_too_large", e.Message)),
         UnsupportedMediaTypeException e => (415, Body("unsupported_media_type", e.Message)),
-        ConfigurationException e => (500, Body("misconfigured", e.Message)),
+        TooManyRequestsException e => (429, Body("too_many_requests", e.Message)),
+        // Deliberately NOT e.Message: a ConfigurationException names the
+        // configuration key that is missing or malformed, which is internal
+        // detail about this deployment rather than anything the caller can act
+        // on. ErrorHandlingMiddleware still logs the exception in full.
+        ConfigurationException => (500, Body("misconfigured", "The service is misconfigured.")),
         UpstreamAuthException e => (502, Body("upstream_auth", e.Message)),
         _ => (500, Body("internal", "Unexpected error.")),
     };

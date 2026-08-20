@@ -34,6 +34,17 @@ public sealed class UnsupportedMediaTypeException(string message) : BloodworkExc
 public sealed class PayloadTooLargeException(string message) : BloodworkException(message);
 
 /// <summary>
+/// The caller has spent its request allowance for the current window -- 429.
+///
+/// Every route is <c>AuthorizationLevel.Anonymous</c> behind a public URL, and
+/// authenticating a request costs an outbound call to Google, so the limit is
+/// applied before authentication rather than after: an unauthenticated flood has
+/// to be cheap to refuse, or it is an amplifier pointed at Google's tokeninfo
+/// endpoint and at this app's own per-execution bill.
+/// </summary>
+public sealed class TooManyRequestsException(string message) : BloodworkException(message);
+
+/// <summary>
 /// Startup configuration is missing or invalid -- 500 ("misconfigured") if it
 /// were ever thrown mid-request, though in practice <c>BloodworkOptions.Load</c>
 /// runs once at host startup and an invalid config simply fails the app to

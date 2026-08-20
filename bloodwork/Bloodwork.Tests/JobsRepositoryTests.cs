@@ -77,7 +77,7 @@ public class JobsRepositoryTests
     }
 
     [Fact]
-    public async Task MarkFailedAsync_SetsStatusAndErrorMessage()
+    public async Task MarkFailedAsync_SetsStatusCodeAndMessage()
     {
         var table = new Mock<TableClient>();
         var existing = new BloodworkJobEntity { PartitionKey = "job", RowKey = "doc-1", Status = "processing", ETag = new ETag("*") };
@@ -92,9 +92,10 @@ public class JobsRepositoryTests
             .ReturnsAsync(Mock.Of<Response>());
 
         var repository = new JobsRepository(table.Object);
-        await repository.MarkFailedAsync("doc-1", "header row not found");
+        await repository.MarkFailedAsync("doc-1", "results_table_not_found", "header row not found");
 
         Assert.Equal("failed", updated!.Status);
+        Assert.Equal("results_table_not_found", updated.ErrorCode);
         Assert.Equal("header row not found", updated.ErrorMessage);
     }
 }

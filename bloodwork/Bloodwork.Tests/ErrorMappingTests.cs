@@ -14,7 +14,7 @@ public class ErrorMappingTests
     [InlineData(typeof(NotFoundException), 404, "not_found")]
     [InlineData(typeof(PayloadTooLargeException), 413, "payload_too_large")]
     [InlineData(typeof(UnsupportedMediaTypeException), 415, "unsupported_media_type")]
-    [InlineData(typeof(ConfigurationException), 500, "misconfigured")]
+    [InlineData(typeof(TooManyRequestsException), 429, "too_many_requests")]
     [InlineData(typeof(UpstreamAuthException), 502, "upstream_auth")]
     public void Map_KnownExceptionTypes_ReturnsDocumentedStatusAndErrorCode(Type exceptionType, int expectedStatus, string expectedError)
     {
@@ -40,6 +40,40 @@ public class ErrorMappingTests
 
         Assert.Equal(403, forbidden);
         Assert.Equal(401, unauthorized);
+    }
+
+    [Fact]
+    public void Map_Configuration_Returns500WithoutEchoingTheMessage()
+    {
+        // Not in the theory above, which asserts every other type round-trips its
+        // own message: a ConfigurationException's message names the configuration
+        // key that is missing or malformed, and that is internal detail about this
+        // deployment rather than anything a caller can act on.
+        //
+        // In practice BloodworkOptions.Load runs once at host startup, so an
+        // invalid config fails the app to start and this mapping cannot fire
+        // mid-request today. It is pinned because the mapping is there waiting for
+        // the first configuration value that is read lazily.
+        var (status, body) = ErrorMapper.Map(new ConfigurationException("Missing required configuration value 'GOOGLE_CLIENT_ID'."));
+
+        Assert.Equal(500, status);
+        var json = JsonSerializer.Serialize(body);
+        using var doc = JsonDocument.Parse(json);
+        Assert.Equal("misconfigured", doc.RootElement.GetProperty("error").GetString());
+        Assert.Equal("The service is misconfigured.", doc.RootElement.GetProperty("message").GetString());
+        Assert.DoesNotContain("GOOGLE_CLIENT_ID", json);
+    }
+
+    [Fact]
+    public void Map_TooManyRequests_IsDistinctFrom403()
+    {
+        // Both mean "no", and the SPA has to tell them apart: 403 is permanent
+        // until a human approves the account, 429 clears on its own.
+        var (throttled, _) = ErrorMapper.Map(new TooManyRequestsException("slow down"));
+        var (forbidden, _) = ErrorMapper.Map(new ForbiddenException("not approved"));
+
+        Assert.Equal(429, throttled);
+        Assert.Equal(403, forbidden);
     }
 
     [Fact]

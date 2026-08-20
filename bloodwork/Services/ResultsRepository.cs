@@ -81,18 +81,129 @@ public sealed class ResultsRepository([FromKeyedServices("results")] TableClient
         }
     }
 
-    public async IAsyncEnumerable<BloodworkResultEntity> ListForOwnerAsync(
-        string sub, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct = default)
+    /// <summary>
+    /// One page of a caller's history, newest last.
+    /// <paramref name="Truncated"/> means more rows matched than were returned --
+    /// the response was capped, not the data.
+    /// </summary>
+    public sealed record ResultPage(IReadOnlyList<BloodworkResultEntity> Rows, bool Truncated);
+
+    /// <summary>
+    /// The caller's rows, optionally narrowed to a closed date range and always
+    /// capped at <paramref name="maxRows"/>.
+    ///
+    /// A single-partition query, not a filter on a non-key property: a caller owns
+    /// exactly one partition, so this reads their rows and nobody else's. (The
+    /// original form, <c>e.Sub == sub</c>, was a full-table scan whose cost grew
+    /// with every user's data rather than the caller's.)
+    ///
+    /// The range is expressed against the RowKey rather than the ReportDate
+    /// column, deliberately: RowKey is <c>{date}|{analyte}</c> with a fixed-width
+    /// ISO date in front, so an ordinal string range over it is a date range, and
+    /// it is a key range -- the server seeks to it instead of scanning the
+    /// partition and discarding rows. <c>to</c> is inclusive to the caller and
+    /// becomes an exclusive <c>&lt; nextDay|</c> bound here, which is what makes
+    /// "the whole of the last day" fall inside it without depending on how the
+    /// analyte half of the key sorts.
+    /// </summary>
+    public async Task<ResultPage> ListForOwnerAsync(
+        string sub, DateOnly? from = null, DateOnly? to = null, int maxRows = int.MaxValue, CancellationToken ct = default)
     {
-        // A single-partition query, not a filter on a non-key property: a caller
-        // owns exactly one partition, so this reads their rows and nobody else's.
-        // The previous form (e.Sub == sub) was a full-table scan whose cost grew
-        // with every user's data rather than the caller's.
-        await foreach (var entity in table.QueryAsync<BloodworkResultEntity>(e => e.PartitionKey == sub, cancellationToken: ct))
+        var filter = BuildRangeFilter(sub, from, to);
+
+        // Rows arrive in RowKey order, so oldest first. The cap therefore has to
+        // keep the TAIL: a health timeline that silently stopped at its oldest N
+        // rows would be a timeline missing everything recent, which is the half
+        // that matters. Holding only maxRows + 1 keeps this bounded in memory too,
+        // not just in the response.
+        var window = new Queue<BloodworkResultEntity>();
+        var truncated = false;
+        await foreach (var entity in table.QueryAsync<BloodworkResultEntity>(filter, cancellationToken: ct))
         {
-            yield return entity;
+            window.Enqueue(entity);
+            if (window.Count > maxRows)
+            {
+                window.Dequeue();
+                truncated = true;
+            }
         }
+
+        var rows = window.ToList();
+        if (truncated)
+        {
+            // The oldest date left in the window is the one the cap cut into, so
+            // it is a partial report wearing a whole one's clothes -- a card whose
+            // missing analytes look like analytes the lab never measured. Dropping
+            // it whole is the honest answer; `truncated` already says data was
+            // left behind. Kept when it is the only date, since dropping it would
+            // answer a request for one enormous report with nothing at all.
+            var oldest = rows[0].ReportDate;
+            if (rows.Any(r => !string.Equals(r.ReportDate, oldest, StringComparison.Ordinal)))
+            {
+                rows = rows.Where(r => !string.Equals(r.ReportDate, oldest, StringComparison.Ordinal)).ToList();
+            }
+        }
+
+        return new ResultPage(rows, truncated);
     }
+
+    /// <summary>
+    /// Deletes every row of one report belonging to one caller, and reports which
+    /// uploaded documents produced them so the blobs and job rows behind them can
+    /// go too.
+    ///
+    /// Scoped by partition, so "delete this date" can only ever mean the caller's
+    /// own -- there is no reachable form of this that names another account's
+    /// partition.
+    /// </summary>
+    public async Task<DeletedReport> DeleteReportAsync(string sub, DateOnly reportDate, CancellationToken ct = default)
+    {
+        var filter = BuildRangeFilter(sub, reportDate, reportDate);
+        var documentIds = new HashSet<string>(StringComparer.Ordinal);
+        var deleted = 0;
+
+        await foreach (var entity in table.QueryAsync<BloodworkResultEntity>(filter, cancellationToken: ct))
+        {
+            await table.DeleteEntityAsync(entity.PartitionKey, entity.RowKey, ETag.All, ct);
+            deleted++;
+            if (!string.IsNullOrEmpty(entity.SourceDocumentId))
+            {
+                documentIds.Add(entity.SourceDocumentId);
+            }
+        }
+
+        return new DeletedReport(deleted, documentIds);
+    }
+
+    public sealed record DeletedReport(int RowCount, IReadOnlyCollection<string> SourceDocumentIds);
+
+    /// <summary>
+    /// Built as an OData string rather than a LINQ expression because the range
+    /// is over RowKey ordering, which the expression translator has no operator
+    /// for. <see cref="TableClient.CreateQueryFilter(FormattableString)"/> escapes
+    /// the interpolated values, so a subject id or a date can never break out of
+    /// its literal and rewrite the filter.
+    /// </summary>
+    private static string BuildRangeFilter(string sub, DateOnly? from, DateOnly? to)
+    {
+        var filter = TableClient.CreateQueryFilter($"PartitionKey eq {sub}");
+        if (from is { } start)
+        {
+            var lower = Iso(start) + RowKeySeparator;
+            filter += " and " + TableClient.CreateQueryFilter($"RowKey ge {lower}");
+        }
+        // AddDays(1) on DateOnly.MaxValue throws, and a caller can reach it with
+        // ?to=9999-12-31. No row can sort above that day anyway, so the bound is
+        // simply left off rather than turned into a 500.
+        if (to is { } end && end < DateOnly.MaxValue)
+        {
+            var upper = Iso(end.AddDays(1)) + RowKeySeparator;
+            filter += " and " + TableClient.CreateQueryFilter($"RowKey lt {upper}");
+        }
+        return filter;
+    }
+
+    private static string Iso(DateOnly date) => date.ToString("yyyy-MM-dd");
 
     public async Task<BloodworkResultEntity> CorrectAsync(
         string reportDate, string analyte, string sub, IReadOnlyDictionary<string, string> patch, CancellationToken ct = default)

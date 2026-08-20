@@ -13,10 +13,13 @@ const BLOODWORK_TAB_ITEMS = BLOODWORK_TAB_IDS.map((id) => ({
 export default function BloodworkSection() {
   const {
     resultsByDate,
+    truncated,
     loading,
     error,
     loadedAt,
     reload,
+    needsAuthorization,
+    authorize,
     jobs,
     upload,
     uploading,
@@ -24,12 +27,36 @@ export default function BloodworkSection() {
     correct,
     correcting,
     correctError,
+    remove,
+    removing,
+    removeError,
   } = useBloodworkData()
   const [activeTab, setActiveTab] = useBloodworkTabState()
 
   // Report dates are ISO YYYY-MM-DD, so a plain string sort is also a
   // chronological one -- newest first, matching every other list in the app.
   const dates = Object.keys(resultsByDate).sort().reverse()
+
+  // Not a lapsed sign-in, so it must not read like one. The Google session is
+  // fine; what failed is minting the separate, narrowly-scoped token this API is
+  // sent, and the usual cause is a popup blocked outside a user gesture -- which
+  // a click fixes.
+  if (needsAuthorization) {
+    return (
+      <section className="card signin">
+        <h2>One more step</h2>
+        <p className="muted">
+          Bloodwork uses its own limited Google token — one that proves who you are and nothing
+          else, so this app&apos;s server never receives access to your Google Health data. Granting
+          it needs a click, because browsers block the window it opens otherwise. You are still
+          signed in.
+        </p>
+        <button type="button" className="btn btn-primary" onClick={() => void authorize()}>
+          Continue
+        </button>
+      </section>
+    )
+  }
 
   return (
     <>
@@ -50,6 +77,13 @@ export default function BloodworkSection() {
 
       {error && <p className="banner banner-error">{error}</p>}
       {correctError && <p className="banner banner-error">{correctError}</p>}
+      {removeError && <p className="banner banner-error">{removeError}</p>}
+      {truncated && (
+        <p className="banner banner-warn">
+          Showing the most recent reports only — there are older ones this response could not fit.
+          Nothing has been deleted.
+        </p>
+      )}
 
       {loading && dates.length === 0 ? (
         <p className="muted">Loading your bloodwork results…</p>
@@ -92,6 +126,8 @@ export default function BloodworkSection() {
                   rows={resultsByDate[date]}
                   correcting={correcting}
                   onCorrect={correct}
+                  removing={removing === date}
+                  onRemove={remove}
                 />
               ))}
             </ul>

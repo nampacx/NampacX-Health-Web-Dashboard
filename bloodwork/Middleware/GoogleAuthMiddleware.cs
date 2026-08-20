@@ -20,8 +20,12 @@ namespace Bloodwork.Middleware;
 /// verified subject id is stashed on FunctionContext.Items (via
 /// CallerContext) for every downstream function to scope its data access to.
 ///
-/// Two separate questions, in this order:
+/// Three separate questions, in this order:
 ///
+///   0. Rate -- has this caller already had its share? RequestRateLimiter
+///      answers it, and it has to answer FIRST: verifying a token costs an
+///      outbound call to Google, so a limit applied after authentication would
+///      be a limit applied after the expense it exists to bound.
 ///   1. Authentication -- did this caller sign in through our OAuth client?
 ///      GoogleTokenVerifier answers it, and *any* Google account can answer
 ///      yes, because the client id and this app's URL are both public.
@@ -38,7 +42,8 @@ namespace Bloodwork.Middleware;
 public sealed class GoogleAuthMiddleware(
     CorsService cors,
     GoogleTokenVerifier tokenVerifier,
-    UsersRepository users) : IFunctionsWorkerMiddleware
+    UsersRepository users,
+    RequestRateLimiter rateLimiter) : IFunctionsWorkerMiddleware
 {
     public async Task Invoke(FunctionContext context, FunctionExecutionDelegate next)
     {
@@ -71,6 +76,25 @@ public sealed class GoogleAuthMiddleware(
             // preflight at all -- keep it correct for that case.
             context.GetInvocationResult().Value = new StatusCodeResult(StatusCodes.Status204NoContent);
             return;
+        }
+
+        // Before the token is even read, let alone verified: everything below
+        // this line costs either an outbound call to Google or a round-trip to
+        // Table Storage, and none of it is worth spending on a caller that has
+        // already had its allowance. Preflight is exempt because it never
+        // reaches any of that (and, on Azure, never reaches this code at all).
+        var clientKey = RequestRateLimiter.ClientKeyFrom(
+            httpContext.Request.Headers["X-Forwarded-For"].FirstOrDefault(),
+            httpContext.Connection.RemoteIpAddress?.ToString());
+        if (!rateLimiter.TryAcquire(clientKey, out var retryAfter))
+        {
+            // Set on the live response rather than left to ErrorMapper: the
+            // error contract is a {error, message} JSON body, and Retry-After is
+            // a header, so it has to go on here alongside the CORS ones -- for
+            // the same reason they do.
+            httpContext.Response.Headers.RetryAfter =
+                Math.Max(1, (int)Math.Ceiling(retryAfter.TotalSeconds)).ToString();
+            throw new TooManyRequestsException("Too many requests. Try again shortly.");
         }
 
         var authHeader = httpContext.Request.Headers.Authorization.FirstOrDefault();
