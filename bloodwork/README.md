@@ -144,6 +144,15 @@ The route contract is unchanged by this: the API returns, and `PUT
 /bloodwork/data/{date}/{analyte}` accepts, the **analyte half** of the RowKey — the
 date already travels as its own path segment (`ResultsRepository.AnalyteKeyOf`).
 
+> **One-time step when deploying this change.** Rows written under the old layout
+> are keyed by report date and the new queries will not find them, so they read as
+> missing. Clear `bloodworkResults` (Storage browser → Tables → select all → delete)
+> and re-upload the reports: every source document is still in the
+> `bloodwork-documents` container, since nothing deletes them. Re-uploading
+> regenerates every row under the new keys. **Manual corrections do not survive
+> this** — they live only on the result rows, so re-apply them afterwards. Nothing
+> in `bloodworkJobs` needs touching.
+
 `Services/LayoutParser.cs` matches the results table **structurally** — by scanning
 for a header row whose cells match a known set of German column names (`Analyse`,
 `Bezeichnung`, `Ergebniswert`, `+/-`, `Einheit`, `Ergebnistext`, `Normbereich`) —
