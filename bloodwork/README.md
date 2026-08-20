@@ -26,7 +26,13 @@ reuses the access token the SPA already holds from Google sign-in (see
 All four require `Authorization: Bearer <google access token>` — the same token
 `useGoogleAuth().getAccessToken()` already returns in the SPA. The token is verified
 per-request against Google's `tokeninfo` endpoint, checking the `aud` claim matches
-`GOOGLE_CLIENT_ID`.
+`GOOGLE_CLIENT_ID`. That only proves the caller signed in through this app's OAuth
+client, not which caller — every row and job is additionally tagged with the
+verified token's `sub` at write time, and every read/list/correct is scoped to the
+caller's own `sub` (see `CallerContext`, populated once by `GoogleAuthMiddleware`).
+Without that, any Google account able to complete this app's consent screen could
+read or edit every other user's lab results, since `GOOGLE_CLIENT_ID` and the
+Function App's URL are both public by design, not secrets.
 
 ### Error contract
 

@@ -26,12 +26,13 @@ public class ResultsRepositoryTests
             new("TESTOA", "Testosteron", "539", "", "ng/dl", "", "197 - 670"),
         };
 
-        await repository.WriteRowsAsync("2026-08-10", rows, "doc-1");
+        await repository.WriteRowsAsync("2026-08-10", rows, "doc-1", "user-sub-1");
 
         var entity = Assert.Single(written);
         Assert.Equal("2026-08-10", entity.PartitionKey);
         Assert.Equal("TESTOA", entity.RowKey);
         Assert.Equal("doc-1", entity.SourceDocumentId);
+        Assert.Equal("user-sub-1", entity.Sub);
         Assert.False(entity.Corrected);
     }
 
@@ -52,7 +53,7 @@ public class ResultsRepositoryTests
             new("GLYKOH", "HBA1c (re-test)", "26,10", "", "mmol/mol", "", "< 39"),
         };
 
-        await repository.WriteRowsAsync("2026-08-10", rows, "doc-1");
+        await repository.WriteRowsAsync("2026-08-10", rows, "doc-1", "user-sub-1");
 
         Assert.Equal(2, written.Count);
         Assert.Equal("GLYKOH", written[0].RowKey);
@@ -72,7 +73,7 @@ public class ResultsRepositoryTests
         var repository = new ResultsRepository(table.Object);
         var rows = new List<AnalyteRow> { new("BAD/#?CODE", "Something", "1", "", "u", "", "0-1") };
 
-        await repository.WriteRowsAsync("2026-08-10", rows, "doc-1");
+        await repository.WriteRowsAsync("2026-08-10", rows, "doc-1", "user-sub-1");
 
         var entity = Assert.Single(written);
         Assert.DoesNotContain('/', entity.RowKey);
@@ -89,6 +90,7 @@ public class ResultsRepositoryTests
             PartitionKey = "2026-08-10",
             RowKey = "TESTOA",
             Ergebniswert = "539",
+            Sub = "user-sub-1",
             ETag = new ETag("*"),
         };
         table
@@ -107,7 +109,7 @@ public class ResultsRepositoryTests
             .ReturnsAsync(Mock.Of<Response>());
 
         var repository = new ResultsRepository(table.Object);
-        var result = await repository.CorrectAsync("2026-08-10", "TESTOA", new Dictionary<string, string> { ["ergebniswert"] = "540" });
+        var result = await repository.CorrectAsync("2026-08-10", "TESTOA", "user-sub-1", new Dictionary<string, string> { ["ergebniswert"] = "540" });
 
         Assert.Equal(TableUpdateMode.Merge, modeUsed);
         Assert.Equal("540", updated!.Ergebniswert);
@@ -127,6 +129,32 @@ public class ResultsRepositoryTests
         var repository = new ResultsRepository(table.Object);
 
         await Assert.ThrowsAsync<NotFoundException>(
-            () => repository.CorrectAsync("2026-08-10", "MISSING", new Dictionary<string, string> { ["ergebniswert"] = "1" }));
+            () => repository.CorrectAsync("2026-08-10", "MISSING", "user-sub-1", new Dictionary<string, string> { ["ergebniswert"] = "1" }));
+    }
+
+    [Fact]
+    public async Task CorrectAsync_RowOwnedByAnotherCaller_ThrowsNotFound()
+    {
+        var table = new Mock<TableClient>();
+        var existing = new BloodworkResultEntity
+        {
+            PartitionKey = "2026-08-10",
+            RowKey = "TESTOA",
+            Ergebniswert = "539",
+            Sub = "user-sub-1",
+            ETag = new ETag("*"),
+        };
+        table
+            .Setup(t => t.GetEntityAsync<BloodworkResultEntity>("2026-08-10", "TESTOA", null, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Response.FromValue(existing, Mock.Of<Response>()));
+
+        var repository = new ResultsRepository(table.Object);
+
+        // Someone else's account is asking about user-sub-1's row -- must
+        // read exactly like the row not existing, not a distinct "forbidden".
+        await Assert.ThrowsAsync<NotFoundException>(
+            () => repository.CorrectAsync("2026-08-10", "TESTOA", "someone-elses-sub", new Dictionary<string, string> { ["ergebniswert"] = "1" }));
+
+        table.Verify(t => t.UpdateEntityAsync(It.IsAny<BloodworkResultEntity>(), It.IsAny<ETag>(), It.IsAny<TableUpdateMode>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 }

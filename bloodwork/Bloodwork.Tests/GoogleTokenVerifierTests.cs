@@ -31,17 +31,27 @@ public class GoogleTokenVerifierTests
     }
 
     [Fact]
-    public async Task VerifyAsync_MatchingAudience_DoesNotThrow()
+    public async Task VerifyAsync_MatchingAudience_ReturnsSubject()
     {
-        var verifier = BuildVerifier(HttpStatusCode.OK, """{"aud":"expected-client-id","expires_in":"3599"}""");
+        var verifier = BuildVerifier(HttpStatusCode.OK, """{"aud":"expected-client-id","sub":"10769150350006150715113082367","expires_in":"3599"}""");
 
-        await verifier.VerifyAsync("some-token");
+        var sub = await verifier.VerifyAsync("some-token");
+
+        Assert.Equal("10769150350006150715113082367", sub);
     }
 
     [Fact]
     public async Task VerifyAsync_WrongAudience_ThrowsUnauthorized()
     {
-        var verifier = BuildVerifier(HttpStatusCode.OK, """{"aud":"someone-elses-client-id"}""");
+        var verifier = BuildVerifier(HttpStatusCode.OK, """{"aud":"someone-elses-client-id","sub":"10769150350006150715113082367"}""");
+
+        await Assert.ThrowsAsync<UnauthorizedException>(() => verifier.VerifyAsync("some-token"));
+    }
+
+    [Fact]
+    public async Task VerifyAsync_MissingSubject_ThrowsUnauthorized()
+    {
+        var verifier = BuildVerifier(HttpStatusCode.OK, """{"aud":"expected-client-id","expires_in":"3599"}""");
 
         await Assert.ThrowsAsync<UnauthorizedException>(() => verifier.VerifyAsync("some-token"));
     }

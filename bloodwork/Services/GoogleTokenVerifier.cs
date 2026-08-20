@@ -13,7 +13,17 @@ namespace Bloodwork.Services;
 /// </summary>
 public sealed class GoogleTokenVerifier(HttpClient httpClient, BloodworkOptions options)
 {
-    public async Task VerifyAsync(string accessToken, CancellationToken cancellationToken = default)
+    /// <summary>
+    /// Returns the verified caller's Google subject id (<c>sub</c>) so callers
+    /// can scope stored data to it. Documented tokeninfo responses show
+    /// <c>sub</c> present on access tokens without an <c>openid</c> scope, and
+    /// this app never requests one -- confirm that holds against a real
+    /// response (log the token's own <c>sub</c> once, not the raw body -- see
+    /// the no-raw-logging note below) before trusting this in production; if
+    /// it's ever absent, that must fail closed (see the throw below), never
+    /// silently scope data to an empty string.
+    /// </summary>
+    public async Task<string> VerifyAsync(string accessToken, CancellationToken cancellationToken = default)
     {
         HttpResponseMessage response;
         try
@@ -47,12 +57,24 @@ public sealed class GoogleTokenVerifier(HttpClient httpClient, BloodworkOptions 
         {
             throw new UnauthorizedException("Access token was issued for a different client.");
         }
+
+        // Fail closed rather than falling back to an empty/shared owner id --
+        // that would silently pool every such caller's rows into one bucket.
+        if (string.IsNullOrEmpty(body.Sub))
+        {
+            throw new UnauthorizedException("Google tokeninfo response did not include a subject id.");
+        }
+
+        return body.Sub;
     }
 
     private sealed class TokenInfoResponse
     {
         [JsonPropertyName("aud")]
         public string? Aud { get; set; }
+
+        [JsonPropertyName("sub")]
+        public string? Sub { get; set; }
 
         [JsonPropertyName("error")]
         public string? Error { get; set; }

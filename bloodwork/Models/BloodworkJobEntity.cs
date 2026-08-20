@@ -23,6 +23,9 @@ public sealed class BloodworkJobEntity : ITableEntity
     /// <summary>"pending" | "processing" | "completed" | "failed"</summary>
     public string Status { get; set; } = "pending";
 
+    /// <summary>The uploader's Google subject id, from the verified access token at upload time.</summary>
+    public string Sub { get; set; } = string.Empty;
+
     public string BlobName { get; set; } = string.Empty;
     public string ContentType { get; set; } = string.Empty;
 

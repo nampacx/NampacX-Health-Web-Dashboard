@@ -15,7 +15,8 @@ public sealed class UploadFunction(
     BloodworkOptions options,
     BlobContainerClient documentsContainer,
     QueueClient processingQueue,
-    JobsRepository jobsRepository)
+    JobsRepository jobsRepository,
+    CallerContext callerContext)
 {
     private static readonly IReadOnlyDictionary<string, string> AllowedContentTypes = new Dictionary<string, string>
     {
@@ -57,7 +58,7 @@ public sealed class UploadFunction(
             new BlobUploadOptions { HttpHeaders = new BlobHttpHeaders { ContentType = contentType } },
             ct);
 
-        await jobsRepository.CreateAsync(documentId, blobName, contentType, ct);
+        await jobsRepository.CreateAsync(documentId, blobName, contentType, callerContext.RequireGoogleSub(), ct);
 
         var message = JsonSerializer.Serialize(new ProcessingMessage(documentId, blobName));
         await processingQueue.SendMessageAsync(message, ct);

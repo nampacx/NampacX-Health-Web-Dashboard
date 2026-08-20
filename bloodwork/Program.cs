@@ -51,6 +51,7 @@ builder.Services.AddSingleton(options);
 builder.Services.AddHttpClient<GoogleTokenVerifier>();
 builder.Services.AddSingleton<CorsService>();
 builder.Services.AddSingleton<LayoutParser>();
+builder.Services.AddScoped<CallerContext>();
 builder.Services.AddScoped<JobsRepository>();
 builder.Services.AddScoped<ResultsRepository>();
 builder.Services.AddScoped<DocumentIntelligenceService>();

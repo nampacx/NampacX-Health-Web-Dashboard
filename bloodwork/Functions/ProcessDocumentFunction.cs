@@ -47,13 +47,13 @@ public sealed class ProcessDocumentFunction(
 
         try
         {
-            await jobsRepository.MarkProcessingAsync(payload.DocumentId, ct);
+            var job = await jobsRepository.MarkProcessingAsync(payload.DocumentId, ct);
 
             var download = await documentsContainer.GetBlobClient(payload.BlobName).DownloadContentAsync(ct);
             var analyzeResult = await documentIntelligence.AnalyzeLayoutAsync(download.Value.Content, ct);
             var (reportDate, rows) = layoutParser.Parse(analyzeResult);
 
-            await resultsRepository.WriteRowsAsync(reportDate, rows, payload.DocumentId, ct);
+            await resultsRepository.WriteRowsAsync(reportDate, rows, payload.DocumentId, job.Sub, ct);
             await jobsRepository.MarkCompletedAsync(payload.DocumentId, reportDate, rows.Count, ct);
         }
         catch (ParseException ex)
