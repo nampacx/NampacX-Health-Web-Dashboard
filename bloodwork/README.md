@@ -24,15 +24,32 @@ reuses the access token the SPA already holds from Google sign-in (see
 | `PUT` | `/bloodwork/data/{date}/{analyte}` | Correct one stored value. |
 
 All four require `Authorization: Bearer <google access token>` — the same token
-`useGoogleAuth().getAccessToken()` already returns in the SPA. The token is verified
-per-request against Google's `tokeninfo` endpoint, checking the `aud` claim matches
-`GOOGLE_CLIENT_ID`. That only proves the caller signed in through this app's OAuth
-client, not which caller — every row and job is additionally tagged with the
-verified token's `sub` at write time, and every read/list/correct is scoped to the
-caller's own `sub` (see `CallerContext`, populated once by `GoogleAuthMiddleware`).
-Without that, any Google account able to complete this app's consent screen could
-read or edit every other user's lab results, since `GOOGLE_CLIENT_ID` and the
-Function App's URL are both public by design, not secrets.
+`useGoogleAuth().getAccessToken()` already returns in the SPA. `GoogleAuthMiddleware`
+answers two separate questions in order, and both have to pass before any handler
+runs:
+
+**1. Authentication — did this caller sign in through our OAuth client?** The token
+is verified per-request against Google's `tokeninfo` endpoint, checking the `aud`
+claim matches `GOOGLE_CLIENT_ID`. That only proves the caller came through this
+app's consent screen, not *which* caller — every row and job is additionally tagged
+with the verified token's `sub` at write time, and every read/list/correct is scoped
+to the caller's own `sub` (see `CallerContext`, populated once by
+`GoogleAuthMiddleware`). Without that, any Google account able to complete the
+consent screen could read or edit every other user's lab results, since
+`GOOGLE_CLIENT_ID` and the Function App's URL are both public by design, not secrets.
+
+**2. Authorization — is this account allowed in at all?** Any Google account on
+earth can pass step 1. The `bloodworkUsers` table is the allowlist that decides who
+actually gets in: `UsersRepository.IsApprovedAsync` looks the caller's `sub` up and
+lets the request through only when the row exists **and** carries `Approved = true`.
+Anything else is a `403 forbidden`, and an account nobody has seen before is
+recorded as unapproved on the way out — see [Approving a user](#approving-a-user).
+
+The gate lives in the middleware rather than in one function so it covers every
+route uniformly. Gating only `GET /bloodwork/data` would leave `POST
+/bloodwork/upload` open, and an unapproved account could still push lab reports into
+the storage account and spend Document Intelligence quota, which is most of what
+there is to abuse here.
 
 ### Error contract
 
@@ -43,11 +60,49 @@ status code:
 | --- | --- | --- |
 | 400 | `bad_request` | Malformed request (e.g. no correctable fields in a `PUT` body). |
 | 401 | `unauthorized` | Missing/invalid/expired Google access token, or wrong `aud`. |
+| 403 | `forbidden` | Valid token, but the account is not approved in `bloodworkUsers`. |
 | 404 | `not_found` | Unknown `documentId`, or no row at that date/analyte. |
 | 413 | `payload_too_large` | Upload exceeds `MAX_UPLOAD_BYTES`. |
 | 415 | `unsupported_media_type` | `Content-Type` isn't `application/pdf`, `image/jpeg`, or `image/png`. |
 | 500 | `internal` | Unexpected error. |
 | 502 | `upstream_auth` | Google's `tokeninfo` endpoint was unreachable. |
+
+## Approving a user
+
+There is **no approval endpoint, and no configuration value that grants access**.
+The only way to approve someone is to edit their row in the `bloodworkUsers` table
+by hand. That is the design, not a missing feature: code that cannot grant access
+cannot be tricked into granting it, and a table with one boolean column is a
+smaller thing to get right than an admin route with its own authentication.
+
+The `bloodworkUsers` table holds one row per Google account that has ever presented
+a valid token to this app:
+
+| Column | |
+| --- | --- |
+| `PartitionKey` | Always `user`. |
+| `RowKey` | The account's Google `sub` — the same value tagging its jobs and result rows. |
+| `Approved` | `false` until a human flips it. **The app only ever writes `false`.** |
+| `Email` | Display-only, so you can tell whose account a 21-digit `sub` is. Absent if the token carried no email scope. Never used for authorization — addresses change, `sub` does not. |
+| `FirstSeenAt` | ISO 8601, when the account first presented a valid token. |
+
+The flow:
+
+1. A new user signs in to the SPA. Their first request creates their row with
+   `Approved = false` and comes back `403`; the Bloodwork tab shows the message from
+   that response as an error banner.
+2. Open the storage account → **Storage browser** → **Tables** → `bloodworkUsers`
+   (or use Azure Storage Explorer). Find the row by `Email`.
+3. Set `Approved` to `true` and save.
+4. The user reloads. No sign-out or re-consent needed — the gate is checked per
+   request, so the next one simply passes.
+
+To revoke, set it back to `false`; the next request is refused. Their stored rows
+are untouched, so re-approving restores access exactly as it was.
+
+**Bootstrapping.** You are not special-cased — after the first deploy, sign in once,
+then approve your own row. The same applies locally against Azurite, where the table
+is created on first run by `CreateIfNotExists`.
 
 ## The async pipeline
 

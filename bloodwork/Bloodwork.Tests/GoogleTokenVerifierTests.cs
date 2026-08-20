@@ -35,9 +35,34 @@ public class GoogleTokenVerifierTests
     {
         var verifier = BuildVerifier(HttpStatusCode.OK, """{"aud":"expected-client-id","sub":"10769150350006150715113082367","expires_in":"3599"}""");
 
-        var sub = await verifier.VerifyAsync("some-token");
+        var caller = await verifier.VerifyAsync("some-token");
 
-        Assert.Equal("10769150350006150715113082367", sub);
+        Assert.Equal("10769150350006150715113082367", caller.Sub);
+    }
+
+    [Fact]
+    public async Task VerifyAsync_EmailScopeGranted_ReturnsEmailAlongsideSubject()
+    {
+        var verifier = BuildVerifier(HttpStatusCode.OK, """{"aud":"expected-client-id","sub":"10769150350006150715113082367","email":"someone@example.com","email_verified":"true"}""");
+
+        var caller = await verifier.VerifyAsync("some-token");
+
+        // Display-only, so whoever approves a bloodworkUsers row can tell whose
+        // account it is. Authorization is on Sub and only ever on Sub.
+        Assert.Equal("someone@example.com", caller.Email);
+    }
+
+    [Fact]
+    public async Task VerifyAsync_NoEmailScope_ReturnsNullEmailWithoutFailing()
+    {
+        var verifier = BuildVerifier(HttpStatusCode.OK, """{"aud":"expected-client-id","sub":"10769150350006150715113082367"}""");
+
+        var caller = await verifier.VerifyAsync("some-token");
+
+        // A token with no email scope is a valid token. Nothing authorizes on
+        // the address, so there is nothing here to fail closed about.
+        Assert.Null(caller.Email);
+        Assert.Equal("10769150350006150715113082367", caller.Sub);
     }
 
     [Fact]

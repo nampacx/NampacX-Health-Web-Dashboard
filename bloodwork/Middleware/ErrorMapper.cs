@@ -16,6 +16,7 @@ public static class ErrorMapper
     {
         BadRequestException e => (400, Body("bad_request", e.Message)),
         UnauthorizedException e => (401, Body("unauthorized", e.Message)),
+        ForbiddenException e => (403, Body("forbidden", e.Message)),
         NotFoundException e => (404, Body("not_found", e.Message)),
         PayloadTooLargeException e => (413, Body("payload_too_large", e.Message)),
         UnsupportedMediaTypeException e => (415, Body("unsupported_media_type", e.Message)),

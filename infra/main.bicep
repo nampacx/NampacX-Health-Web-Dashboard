@@ -67,6 +67,10 @@ var bwDeploymentContainerName = 'app-package'
 var bwDocumentsContainerName = 'bloodwork-documents'
 var bwJobsTableName = 'bloodworkJobs'
 var bwResultsTableName = 'bloodworkResults'
+// The approval allowlist. Rows are created unapproved by the app on a new
+// account's first request; flipping Approved to true is a manual edit here --
+// there is deliberately no code path that grants access.
+var bwUsersTableName = 'bloodworkUsers'
 var bwQueueName = 'bloodwork-processing'
 
 // Confirmed against Microsoft's current built-in-role list: b7e6dc6d-...
@@ -349,6 +353,11 @@ resource bwJobsTable 'Microsoft.Storage/storageAccounts/tableServices/tables@202
 resource bwResultsTable 'Microsoft.Storage/storageAccounts/tableServices/tables@2023-05-01' = {
   parent: bwTableService
   name: bwResultsTableName
+}
+
+resource bwUsersTable 'Microsoft.Storage/storageAccounts/tableServices/tables@2023-05-01' = {
+  parent: bwTableService
+  name: bwUsersTableName
 }
 
 resource bwQueueService 'Microsoft.Storage/storageAccounts/queueServices@2023-05-01' = {

@@ -16,6 +16,14 @@ public sealed class UnauthorizedException(string message) : BloodworkException(m
 /// <summary>Google's tokeninfo endpoint was unreachable -- 502. Distinct from 401: this is not the caller's fault.</summary>
 public sealed class UpstreamAuthException(string message) : BloodworkException(message);
 
+/// <summary>
+/// The caller's token is valid, but the account behind it is not on the
+/// bloodworkUsers allowlist -- 403. Deliberately distinct from 401: the
+/// credential is fine and re-authenticating will not help, so the SPA must not
+/// treat this as an expired session and bounce the user back through sign-in.
+/// </summary>
+public sealed class ForbiddenException(string message) : BloodworkException(message);
+
 /// <summary>Unknown documentId, or no row at the given date/analyte -- 404.</summary>
 public sealed class NotFoundException(string message) : BloodworkException(message);
 

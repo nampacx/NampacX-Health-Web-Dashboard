@@ -10,6 +10,7 @@ public class ErrorMappingTests
     [Theory]
     [InlineData(typeof(BadRequestException), 400, "bad_request")]
     [InlineData(typeof(UnauthorizedException), 401, "unauthorized")]
+    [InlineData(typeof(ForbiddenException), 403, "forbidden")]
     [InlineData(typeof(NotFoundException), 404, "not_found")]
     [InlineData(typeof(PayloadTooLargeException), 413, "payload_too_large")]
     [InlineData(typeof(UnsupportedMediaTypeException), 415, "unsupported_media_type")]
@@ -26,6 +27,19 @@ public class ErrorMappingTests
         using var doc = JsonDocument.Parse(json);
         Assert.Equal(expectedError, doc.RootElement.GetProperty("error").GetString());
         Assert.Equal("boom", doc.RootElement.GetProperty("message").GetString());
+    }
+
+    [Fact]
+    public void Map_Forbidden_IsDistinctFrom401()
+    {
+        // The SPA's stored Google token is still good when this fires -- an
+        // unapproved account re-signing-in gets the same answer. Collapsing
+        // this into 401 would send the user round the sign-in loop forever.
+        var (forbidden, _) = ErrorMapper.Map(new ForbiddenException("not approved"));
+        var (unauthorized, _) = ErrorMapper.Map(new UnauthorizedException("bad token"));
+
+        Assert.Equal(403, forbidden);
+        Assert.Equal(401, unauthorized);
     }
 
     [Fact]

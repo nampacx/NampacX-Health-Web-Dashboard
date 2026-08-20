@@ -51,6 +51,13 @@ builder.Services.AddSingleton(options);
 builder.Services.AddHttpClient<GoogleTokenVerifier>();
 builder.Services.AddSingleton<CorsService>();
 builder.Services.AddSingleton<LayoutParser>();
+// Singleton, unlike the two repositories below, because GoogleAuthMiddleware
+// consumes it by constructor injection and middleware resolves its dependencies
+// outside the function invocation's own DI scope (see CallerContext's comment
+// for what that cost the first time it was learned). CorsService is registered
+// the same way for the same reason. Nothing here holds per-request state, so a
+// singleton over a keyed singleton TableClient is the honest lifetime anyway.
+builder.Services.AddSingleton<UsersRepository>();
 builder.Services.AddScoped<JobsRepository>();
 builder.Services.AddScoped<ResultsRepository>();
 builder.Services.AddScoped<DocumentIntelligenceService>();
@@ -113,6 +120,12 @@ builder.Services.AddKeyedSingleton("jobs", (sp, _) =>
 builder.Services.AddKeyedSingleton("results", (sp, _) =>
 {
     var client = sp.GetRequiredService<TableServiceClient>().GetTableClient("bloodworkResults");
+    client.CreateIfNotExists();
+    return client;
+});
+builder.Services.AddKeyedSingleton("users", (sp, _) =>
+{
+    var client = sp.GetRequiredService<TableServiceClient>().GetTableClient("bloodworkUsers");
     client.CreateIfNotExists();
     return client;
 });
