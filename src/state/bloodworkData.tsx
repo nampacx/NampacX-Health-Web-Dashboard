@@ -23,6 +23,7 @@ import type {
   BloodworkResultsByDate,
 } from '../api/bloodwork/types'
 import { useGoogleAuth } from '../auth/google/GoogleAuthContext'
+import { InteractionRequiredError } from '../auth/google/googleAuth'
 
 /** Terminal states stop polling; anything else keeps checking back. */
 const TERMINAL_STATUSES = new Set(['completed', 'failed'])
@@ -48,6 +49,14 @@ interface BloodworkDataState {
    * a browser will always allow the popup in.
    */
   needsAuthorization: boolean
+  /**
+   * Why the last mint failed, or null when it simply has not been asked for
+   * yet. Never swallowed: an empty card that reappears after the popup closes
+   * is indistinguishable from a broken button, and the first version of this
+   * did exactly that -- it hid a real bug (Google returning the full grant,
+   * caught by the scope check) behind a silent retry.
+   */
+  authorizeError: string | null
   authorize: () => Promise<void>
   /** Uploads made this session, newest first. Cleared on sign-out, not persisted. */
   jobs: BloodworkJob[]
@@ -75,6 +84,11 @@ export function BloodworkDataProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState<string | null>(null)
   const [loadedAt, setLoadedAt] = useState<Date | null>(null)
   const [needsAuthorization, setNeedsAuthorization] = useState(false)
+  const [authorizeError, setAuthorizeError] = useState<string | null>(null)
+  // The same value as the state above, readable synchronously. A caller that
+  // awaits withToken() and then wants the reason cannot read the state it just
+  // set -- that render has not happened yet.
+  const lastAuthError = useRef<string | null>(null)
 
   const [jobs, setJobs] = useState<BloodworkJob[]>([])
   const [uploading, setUploading] = useState(false)
@@ -111,9 +125,21 @@ export function BloodworkDataProvider({ children }: { children: ReactNode }) {
       try {
         const token = await getIdentityToken({ interactive })
         setNeedsAuthorization(false)
+        lastAuthError.current = null
+        setAuthorizeError(null)
         return token
-      } catch {
+      } catch (err) {
         setNeedsAuthorization(true)
+        // InteractionRequired is the ordinary answer for a background caller,
+        // not something to report. Everything else is a real failure and has to
+        // be visible, or the card just silently reappears.
+        lastAuthError.current =
+          err instanceof InteractionRequiredError
+            ? null
+            : err instanceof Error
+              ? err.message
+              : String(err)
+        setAuthorizeError(lastAuthError.current)
         return null
       }
     },
@@ -160,6 +186,7 @@ export function BloodworkDataProvider({ children }: { children: ReactNode }) {
     setUploadError(null)
     setRemoveError(null)
     setNeedsAuthorization(false)
+    setAuthorizeError(null)
   }, [status, clearPolls])
 
   useEffect(() => clearPolls, [clearPolls])
@@ -208,7 +235,7 @@ export function BloodworkDataProvider({ children }: { children: ReactNode }) {
       }
       const token = await withToken(true)
       if (!token) {
-        setUploadError('Could not get permission to reach the bloodwork API. Try again.')
+        setUploadError(lastAuthError.current ?? 'Could not get permission to reach the bloodwork API. Try again.')
         return
       }
 
@@ -249,7 +276,7 @@ export function BloodworkDataProvider({ children }: { children: ReactNode }) {
       if (!apiBaseUrl) return
       const token = await withToken(true)
       if (!token) {
-        setCorrectError('Could not get permission to reach the bloodwork API. Try again.')
+        setCorrectError(lastAuthError.current ?? 'Could not get permission to reach the bloodwork API. Try again.')
         return
       }
 
@@ -279,7 +306,7 @@ export function BloodworkDataProvider({ children }: { children: ReactNode }) {
       if (!apiBaseUrl) return
       const token = await withToken(true)
       if (!token) {
-        setRemoveError('Could not get permission to reach the bloodwork API. Try again.')
+        setRemoveError(lastAuthError.current ?? 'Could not get permission to reach the bloodwork API. Try again.')
         return
       }
 
@@ -317,6 +344,7 @@ export function BloodworkDataProvider({ children }: { children: ReactNode }) {
       loadedAt,
       reload: () => void load(),
       needsAuthorization,
+      authorizeError,
       authorize,
       jobs,
       upload,
@@ -338,6 +366,7 @@ export function BloodworkDataProvider({ children }: { children: ReactNode }) {
       loadedAt,
       load,
       needsAuthorization,
+      authorizeError,
       authorize,
       jobs,
       upload,

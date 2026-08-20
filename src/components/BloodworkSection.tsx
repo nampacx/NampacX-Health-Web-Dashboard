@@ -19,6 +19,7 @@ export default function BloodworkSection() {
     loadedAt,
     reload,
     needsAuthorization,
+    authorizeError,
     authorize,
     jobs,
     upload,
@@ -54,6 +55,8 @@ export default function BloodworkSection() {
         <button type="button" className="btn btn-primary" onClick={() => void authorize()}>
           Continue
         </button>
+
+        {authorizeError && <p className="banner banner-error">{authorizeError}</p>}
       </section>
     )
   }

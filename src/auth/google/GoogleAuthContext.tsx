@@ -14,6 +14,7 @@ import {
   clearIdentityToken,
   clearToken,
   fetchUserProfile,
+  InteractionRequiredError,
   isExpired,
   loadIdentityToken,
   loadToken,
@@ -147,8 +148,9 @@ export function GoogleAuthProvider({ children }: { children: ReactNode }) {
     if (!clientId) throw new Error('VITE_GOOGLE_CLIENT_ID is not set.')
     if (options?.interactive !== true) {
       // Not an error state, and not a lapsed session -- just "this needs a
-      // click first". The caller turns it into one.
-      throw new Error('The bloodwork API needs permission that has to be granted from a click.')
+      // click first". Its own error type so the caller can tell it apart from a
+      // mint that actually went wrong, and show a button rather than a message.
+      throw new InteractionRequiredError()
     }
 
     identityMint.current ??= (async () => {
