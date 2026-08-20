@@ -1,6 +1,14 @@
 import BloodworkReportCard from './BloodworkReportCard'
+import BloodworkSummaryTable from './BloodworkSummaryTable'
 import BloodworkUpload from './BloodworkUpload'
 import { useBloodworkData } from '../state/bloodworkData'
+import { BLOODWORK_TAB_IDS, BLOODWORK_TAB_LABELS, useBloodworkTabState } from '../state/tabs'
+import Tabs, { tabButtonId, tabPanelId } from './Tabs'
+
+const BLOODWORK_TAB_ITEMS = BLOODWORK_TAB_IDS.map((id) => ({
+  id,
+  label: BLOODWORK_TAB_LABELS[id],
+}))
 
 export default function BloodworkSection() {
   const {
@@ -17,6 +25,7 @@ export default function BloodworkSection() {
     correcting,
     correctError,
   } = useBloodworkData()
+  const [activeTab, setActiveTab] = useBloodworkTabState()
 
   // Report dates are ISO YYYY-MM-DD, so a plain string sort is also a
   // chronological one -- newest first, matching every other list in the app.
@@ -50,17 +59,44 @@ export default function BloodworkSection() {
           <p className="muted">Upload a lab report above to see parsed results here.</p>
         </section>
       ) : (
-        <ul className="records">
-          {dates.map((date) => (
-            <BloodworkReportCard
-              key={date}
-              date={date}
-              rows={resultsByDate[date]}
-              correcting={correcting}
-              onCorrect={correct}
-            />
-          ))}
-        </ul>
+        <>
+          <Tabs
+            items={BLOODWORK_TAB_ITEMS}
+            active={activeTab}
+            onChange={setActiveTab}
+            label="Bloodwork views"
+            idPrefix="bloodwork"
+            variant="sub"
+          />
+
+          <div
+            role="tabpanel"
+            id={tabPanelId('bloodwork', 'summary')}
+            aria-labelledby={tabButtonId('bloodwork', 'summary')}
+            hidden={activeTab !== 'summary'}
+          >
+            <BloodworkSummaryTable resultsByDate={resultsByDate} />
+          </div>
+
+          <div
+            role="tabpanel"
+            id={tabPanelId('bloodwork', 'reports')}
+            aria-labelledby={tabButtonId('bloodwork', 'reports')}
+            hidden={activeTab !== 'reports'}
+          >
+            <ul className="records">
+              {dates.map((date) => (
+                <BloodworkReportCard
+                  key={date}
+                  date={date}
+                  rows={resultsByDate[date]}
+                  correcting={correcting}
+                  onCorrect={correct}
+                />
+              ))}
+            </ul>
+          </div>
+        </>
       )}
     </>
   )

@@ -88,3 +88,17 @@ export const WITHINGS_TAB_LABELS: Record<WithingsTabId, string> = {
 export function useWithingsTabState(initial: WithingsTabId = 'charts') {
   return useStoredTab(WITHINGS_TAB_IDS, 'ghd.tab.withings', initial)
 }
+
+/** Inside the Bloodwork tab. */
+export const BLOODWORK_TAB_IDS = ['summary', 'reports'] as const
+export type BloodworkTabId = (typeof BLOODWORK_TAB_IDS)[number]
+
+export const BLOODWORK_TAB_LABELS: Record<BloodworkTabId, string> = {
+  summary: 'Summary',
+  reports: 'Reports',
+}
+
+/** Separate storage key so the Bloodwork sub-tab is remembered independently. */
+export function useBloodworkTabState(initial: BloodworkTabId = 'summary') {
+  return useStoredTab(BLOODWORK_TAB_IDS, 'ghd.tab.bloodwork', initial)
+}
