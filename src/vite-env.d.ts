@@ -39,6 +39,12 @@ declare namespace google.accounts.oauth2 {
     callback: (response: TokenResponse) => void
     error_callback?: (error: { type: string; message?: string }) => void
     prompt?: string
+    /**
+     * Incremental authorization. **Defaults to true**, which means a token
+     * request for a subset of an existing grant comes back covering the WHOLE
+     * grant, not the subset asked for. See requestIdentityToken.
+     */
+    include_granted_scopes?: boolean
   }
 
   function initTokenClient(config: TokenClientConfig): TokenClient

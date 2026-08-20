@@ -42,6 +42,14 @@ from the same grant, scoped to `userinfo.email` alone, and sends that one —
 Nothing here can enforce it (a token is opaque, and its scopes are the client's to
 choose), so the constraint lives where the token is requested.
 
+**That mint sets `include_granted_scopes: false`, and it does not work without it.**
+GIS defaults the flag to *true*, so asking for a subset of an existing grant returns
+a token covering the entire grant — every `googlehealth.*.readonly` scope included.
+The narrow token is only narrow because incremental authorization is switched off
+for it. The SPA also checks the scopes Google actually returned and discards a
+grant that came back wider than requested, so getting this wrong fails loudly
+rather than quietly sending the wrong token.
+
 `GoogleAuthMiddleware` then answers three questions in order, and all three have to
 pass before any handler runs:
 

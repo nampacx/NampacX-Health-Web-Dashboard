@@ -57,6 +57,21 @@ export function isNarrowlyScoped(token: StoredToken): boolean {
 }
 
 /**
+ * Thrown when a narrow token could be minted, but only from a user gesture.
+ *
+ * Its own type because it is not a failure: it is the normal answer for a
+ * background caller, and the UI turns it into a button rather than an error
+ * message. Anything else out of `requestIdentityToken` genuinely went wrong and
+ * has to be shown.
+ */
+export class InteractionRequiredError extends Error {
+  constructor() {
+    super('The bloodwork API needs permission that has to be granted from a click.')
+    this.name = 'InteractionRequiredError'
+  }
+}
+
+/**
  * The GIS client script is loaded async from index.html, so it may not be on
  * `window` yet when React mounts. Poll briefly rather than racing it.
  */
@@ -81,19 +96,29 @@ export function waitForGoogleIdentityServices(timeoutMs = 10_000): Promise<void>
   })
 }
 
+export interface TokenRequestOptions {
+  /**
+   * `''` means Google shows a consent screen only where consent has not already
+   * been given, which for a scope granted at sign-in means no screen at all.
+   */
+  prompt?: '' | 'none' | 'consent' | 'select_account'
+  /**
+   * Incremental authorization. Left at Google's default (true) for sign-in,
+   * which wants everything anyway; turned off for the narrow mint, where it is
+   * the difference between a scoped token and the whole grant.
+   */
+  includeGrantedScopes?: boolean
+}
+
 /**
  * Runs the OAuth 2.0 implicit ("token") flow in a popup. This is the flow meant
  * for browser-only apps: no client secret is involved and nothing but a
  * short-lived access token ever reaches the page.
- *
- * `prompt` is passed through for the narrow-token mint below: `''` means Google
- * shows a consent screen only where consent has not already been given, which
- * for a scope granted at sign-in means no screen at all.
  */
 export function requestAccessToken(
   clientId: string,
   scopes: string[],
-  prompt?: '' | 'none' | 'consent' | 'select_account',
+  options?: TokenRequestOptions,
 ): Promise<StoredToken> {
   return new Promise((resolve, reject) => {
     let settled = false
@@ -101,7 +126,10 @@ export function requestAccessToken(
     const client = google.accounts.oauth2.initTokenClient({
       client_id: clientId,
       scope: scopes.join(' '),
-      ...(prompt === undefined ? {} : { prompt }),
+      ...(options?.prompt === undefined ? {} : { prompt: options.prompt }),
+      ...(options?.includeGrantedScopes === undefined
+        ? {}
+        : { include_granted_scopes: options.includeGrantedScopes }),
       callback: (response) => {
         if (settled) return
         settled = true
@@ -136,6 +164,14 @@ export function requestAccessToken(
  * Mints the identity-only token the bloodwork API is sent — see
  * `IDENTITY_SCOPES` for why that is not the sign-in token.
  *
+ * **`includeGrantedScopes: false` is what makes this narrow at all.** GIS
+ * defaults `include_granted_scopes` to *true*, so asking for a subset of an
+ * existing grant returns a token covering the entire grant — every
+ * `googlehealth.*.readonly` scope included. Without this line the mint succeeds
+ * and hands back exactly the token this whole mechanism exists to avoid
+ * sending. (It did, at first: the popup opened, closed, and `isNarrowlyScoped`
+ * below threw, which is how it was caught.)
+ *
  * `prompt: ''` because the scope is already consented to, so this normally
  * completes with nothing on screen. "Normally" is doing real work there: Google
  * still opens a popup to run it, and browsers block popups outside a user
@@ -144,7 +180,10 @@ export function requestAccessToken(
  * lapsed session — the sign-in token is untouched either way.
  */
 export async function requestIdentityToken(clientId: string): Promise<StoredToken> {
-  const token = await requestAccessToken(clientId, IDENTITY_SCOPES, '')
+  const token = await requestAccessToken(clientId, IDENTITY_SCOPES, {
+    prompt: '',
+    includeGrantedScopes: false,
+  })
   if (!isNarrowlyScoped(token)) {
     // Refusing it is the point. A token that came back carrying health scopes is
     // precisely what this mechanism exists to keep away from the bloodwork
