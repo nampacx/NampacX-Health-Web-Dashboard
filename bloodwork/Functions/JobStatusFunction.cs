@@ -6,19 +6,20 @@ using Microsoft.Azure.Functions.Worker;
 
 namespace Bloodwork.Functions;
 
-public sealed class JobStatusFunction(JobsRepository jobsRepository, CallerContext callerContext)
+public sealed class JobStatusFunction(JobsRepository jobsRepository)
 {
     [Function("BloodworkJobStatus")]
     public async Task<IActionResult> Run(
         [HttpTrigger(AuthorizationLevel.Anonymous, "get", "options", Route = "bloodwork/jobs/{documentId}")] HttpRequest req,
         string documentId,
+        FunctionContext context,
         CancellationToken ct)
     {
         var job = await jobsRepository.GetAsync(documentId, ct);
 
         // Same "not found" a missing id gets -- confirming a job exists
         // under someone else's account is its own information leak.
-        if (!string.Equals(job.Sub, callerContext.RequireGoogleSub(), StringComparison.Ordinal))
+        if (!string.Equals(job.Sub, CallerContext.RequireGoogleSub(context), StringComparison.Ordinal))
         {
             throw new NotFoundException($"No upload found with id '{documentId}'.");
         }

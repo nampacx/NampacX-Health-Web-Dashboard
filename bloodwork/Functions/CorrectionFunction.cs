@@ -7,13 +7,14 @@ using Microsoft.Azure.Functions.Worker;
 
 namespace Bloodwork.Functions;
 
-public sealed class CorrectionFunction(ResultsRepository resultsRepository, CallerContext callerContext)
+public sealed class CorrectionFunction(ResultsRepository resultsRepository)
 {
     [Function("BloodworkCorrection")]
     public async Task<IActionResult> Run(
         [HttpTrigger(AuthorizationLevel.Anonymous, "put", "options", Route = "bloodwork/data/{date}/{analyte}")] HttpRequest req,
         string date,
         string analyte,
+        FunctionContext context,
         CancellationToken ct)
     {
         Dictionary<string, string>? body;
@@ -38,7 +39,7 @@ public sealed class CorrectionFunction(ResultsRepository resultsRepository, Call
             throw new BadRequestException("No correctable fields supplied.");
         }
 
-        var updated = await resultsRepository.CorrectAsync(date, analyte, callerContext.RequireGoogleSub(), patch, ct);
+        var updated = await resultsRepository.CorrectAsync(date, analyte, CallerContext.RequireGoogleSub(context), patch, ct);
 
         return new OkObjectResult(new
         {

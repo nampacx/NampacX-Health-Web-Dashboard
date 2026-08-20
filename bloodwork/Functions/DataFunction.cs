@@ -5,11 +5,12 @@ using Microsoft.Azure.Functions.Worker;
 
 namespace Bloodwork.Functions;
 
-public sealed class DataFunction(ResultsRepository resultsRepository, CallerContext callerContext)
+public sealed class DataFunction(ResultsRepository resultsRepository)
 {
     [Function("BloodworkData")]
     public async Task<IActionResult> Run(
         [HttpTrigger(AuthorizationLevel.Anonymous, "get", "options", Route = "bloodwork/data")] HttpRequest req,
+        FunctionContext context,
         CancellationToken ct)
     {
         // Grouped by report date (PartitionKey), not returned as a flat
@@ -19,7 +20,7 @@ public sealed class DataFunction(ResultsRepository resultsRepository, CallerCont
         // find-by-date step.
         var grouped = new Dictionary<string, List<object>>();
 
-        await foreach (var entity in resultsRepository.ListForOwnerAsync(callerContext.RequireGoogleSub(), ct))
+        await foreach (var entity in resultsRepository.ListForOwnerAsync(CallerContext.RequireGoogleSub(context), ct))
         {
             if (!grouped.TryGetValue(entity.PartitionKey, out var entries))
             {
