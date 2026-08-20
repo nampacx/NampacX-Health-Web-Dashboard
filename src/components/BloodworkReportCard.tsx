@@ -35,13 +35,14 @@ export default function BloodworkReportCard({ date, rows, correcting, onCorrect 
 
   return (
     <li className="card bloodwork-report">
-      <div className="record-head">
-        <h3>{date}</h3>
-        <span className="muted">
-          {rows.length} {rows.length === 1 ? 'result' : 'results'}
-        </span>
-      </div>
-      <div className="bloodwork-table-scroll">
+      <details>
+        <summary className="record-head">
+          <h3>{date}</h3>
+          <span className="muted">
+            {rows.length} {rows.length === 1 ? 'result' : 'results'}
+          </span>
+        </summary>
+        <div className="bloodwork-table-scroll">
         <table className="bloodwork-table">
           <thead>
             <tr>
@@ -144,7 +145,8 @@ export default function BloodworkReportCard({ date, rows, correcting, onCorrect 
             })}
           </tbody>
         </table>
-      </div>
+        </div>
+      </details>
     </li>
   )
 }
