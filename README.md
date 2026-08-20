@@ -29,7 +29,7 @@ Four tabs:
 
 | Tab | What's in it |
 | --- | --- |
-| 🏃 **Google Health** | Three views, sharing one data-type picker and time range:<br>😴 **Sleep** — a proper stage timeline per night (awake / REM / light / deep), composition bar, time in bed, efficiency, short awakenings, plus HRV and heart rate *while you were asleep*.<br>💪 **Exercise** — a card per workout with its most interesting numbers surfaced first, and totals for the window.<br>📋 **All activity** — steps, distance, floors, active minutes, calories and everything else you've selected, grouped by day, newest first. |
+| 🏃 **Google Health** | Five views, sharing one data-type picker and time range (Profile has no time range to apply):<br>😴 **Sleep** — a proper stage timeline per night (awake / REM / light / deep), composition bar, time in bed, efficiency, short awakenings, plus HRV and heart rate *while you were asleep*.<br>💪 **Exercise** — a card per workout with its most interesting numbers surfaced first, and totals for the window.<br>🍎 **Nutrition** — a macro pie and totals per logged day, with derived and logged energy shown side by side.<br>📋 **All activity** — steps, distance, floors, active minutes, calories and everything else you've selected, grouped by day, newest first.<br>🙍 **Profile** — age, stride lengths, membership start date. |
 | ⚖️ **Withings** | Weight and fat-ratio charts over time, and a card per weigh-in with the change since the last one. |
 | 🩸 **Bloodwork** | Upload a lab-report PDF or photo and it's parsed automatically. Two views: **Summary** — one row per analyte with only its latest value and a *Last tested* date, click a row for a trend chart plus the full history table behind it; **Reports** — every value from every upload, grouped by report date, with inline correction for anything the parser got wrong. |
 | 🔧 **Technical details** | Raw fetch outcomes, token state, the boring-but-useful debugging view. |
@@ -37,6 +37,46 @@ Four tabs:
 > 💡 **Sleep Score and Readiness aren't here** — and can't be. Google doesn't expose them through the
 > API at all; they're computed inside the Google Health app and on the watch. Everything above is
 > built from fields the API actually returns.
+
+<table>
+<tr>
+<td width="50%">
+
+**😴 Sleep**
+<img src="assets/img/sleep.png" alt="Sleep tab: a night's stage timeline (awake/light/deep), composition bar, and time-in-bed/efficiency/awake/short-awakenings stats" width="100%" />
+
+</td>
+<td width="50%">
+
+**💪 Exercise**
+<img src="assets/img/exercise.png" alt="Exercise tab: daily total-time bars across the window and a per-day workout list" width="100%" />
+
+</td>
+</tr>
+<tr>
+<td width="50%">
+
+**🍎 Nutrition**
+<img src="assets/img/nutrition.png" alt="Nutrition tab: a macro-share pie and carbs/fat/protein breakdown per logged day" width="100%" />
+
+</td>
+<td width="50%">
+
+**⚖️ Withings**
+<img src="assets/img/withings.png" alt="Withings tab: weight, fat ratio, muscle mass, and fat mass charts over the selected time range" width="100%" />
+
+</td>
+</tr>
+<tr>
+<td colspan="2">
+
+**🩸 Bloodwork** — the Summary table (blurred here, since it's real data) with the analyte detail
+dialog open, showing its trend chart and full history table
+<img src="assets/img/bloodwork.png" alt="Bloodwork tab: the summary table behind an open analyte detail dialog with a trend chart and history table" width="100%" />
+
+</td>
+</tr>
+</table>
 
 ---
 
