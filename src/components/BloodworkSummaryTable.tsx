@@ -1,5 +1,7 @@
+import { useState } from 'react'
 import { buildSummaryRows } from '../api/bloodwork/summary'
 import type { BloodworkResultsByDate } from '../api/bloodwork/types'
+import BloodworkAnalyteDialog from './BloodworkAnalyteDialog'
 
 interface Props {
   resultsByDate: BloodworkResultsByDate
@@ -7,6 +9,7 @@ interface Props {
 
 /** One row per analyte across every report, holding only its latest value. */
 export default function BloodworkSummaryTable({ resultsByDate }: Props) {
+  const [selectedAnalyte, setSelectedAnalyte] = useState<string | null>(null)
   const rows = buildSummaryRows(resultsByDate)
 
   if (rows.length === 0) {
@@ -19,33 +22,49 @@ export default function BloodworkSummaryTable({ resultsByDate }: Props) {
   }
 
   return (
-    <div className="bloodwork-table-scroll">
-      <table className="bloodwork-table">
-        <thead>
-          <tr>
-            <th>Analyte</th>
-            <th>Result</th>
-            <th>Unit</th>
-            <th>Reference range</th>
-            <th>Flag</th>
-            <th>Text</th>
-            <th>Last tested</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map(({ analyse, label, lastTested, row }) => (
-            <tr key={analyse}>
-              <th scope="row">{label}</th>
-              <td className="num">{row.ergebniswert}</td>
-              <td>{row.einheit}</td>
-              <td>{row.normbereich}</td>
-              <td>{row.flag}</td>
-              <td>{row.ergebnistext}</td>
-              <td>{lastTested}</td>
+    <>
+      <div className="bloodwork-table-scroll">
+        <table className="bloodwork-table">
+          <thead>
+            <tr>
+              <th>Analyte</th>
+              <th>Result</th>
+              <th>Unit</th>
+              <th>Reference range</th>
+              <th>Flag</th>
+              <th>Text</th>
+              <th>Last tested</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+          </thead>
+          <tbody>
+            {rows.map(({ analyse, label, lastTested, row }) => (
+              <tr key={analyse}>
+                <th scope="row">
+                  <button
+                    type="button"
+                    className="link-button"
+                    onClick={() => setSelectedAnalyte(analyse)}
+                  >
+                    {label}
+                  </button>
+                </th>
+                <td className="num">{row.ergebniswert}</td>
+                <td>{row.einheit}</td>
+                <td>{row.normbereich}</td>
+                <td>{row.flag}</td>
+                <td>{row.ergebnistext}</td>
+                <td>{lastTested}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <BloodworkAnalyteDialog
+        resultsByDate={resultsByDate}
+        analyse={selectedAnalyte}
+        onClose={() => setSelectedAnalyte(null)}
+      />
+    </>
   )
 }
