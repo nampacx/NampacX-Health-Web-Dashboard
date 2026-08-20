@@ -1,18 +1,31 @@
+using Microsoft.Azure.Functions.Worker;
+
 namespace Bloodwork.Services;
 
 /// <summary>
-/// Holds the caller's verified Google subject id for the lifetime of one
-/// function invocation. Registered scoped (Program.cs); the isolated worker
-/// gives middleware and the function handler it wraps the same DI scope per
-/// invocation, so GoogleAuthMiddleware can set this once and every
-/// HTTP-triggered function downstream reads the same instance instead of
-/// re-deriving identity from the request.
+/// Carries the caller's verified Google subject id from GoogleAuthMiddleware
+/// to the HTTP-triggered function handler that runs after it, via
+/// FunctionContext.Items -- the isolated worker's documented mechanism for
+/// sharing data within the scope of one invocation.
+///
+/// A DI-registered scoped service was tried first (set in the middleware,
+/// constructor-injected into the function) on the assumption that scoped
+/// services match one function execution end to end. That shipped a 500 on
+/// every authenticated request: middleware and the function handler resolve
+/// their constructor dependencies from different scope instances in
+/// practice, so the value set in GoogleAuthMiddleware was invisible to the
+/// function. FunctionContext.Items does not have that problem -- middleware
+/// and handler are both handed the same FunctionContext for the invocation.
 /// </summary>
-public sealed class CallerContext
+public static class CallerContext
 {
-    public string? GoogleSub { get; set; }
+    private const string GoogleSubKey = "GoogleSub";
 
-    public string RequireGoogleSub() =>
-        GoogleSub ?? throw new InvalidOperationException(
-            "CallerContext.GoogleSub was not set -- GoogleAuthMiddleware did not run before this handler.");
+    public static void SetGoogleSub(FunctionContext context, string sub) => context.Items[GoogleSubKey] = sub;
+
+    public static string RequireGoogleSub(FunctionContext context) =>
+        context.Items.TryGetValue(GoogleSubKey, out var value) && value is string sub
+            ? sub
+            : throw new InvalidOperationException(
+                "GoogleSub was not set on FunctionContext.Items -- GoogleAuthMiddleware did not run before this handler.");
 }
