@@ -18,7 +18,7 @@ export default function ExerciseDayGroup({ group }: { group: DayGroup }) {
 
   return (
     <li className="exercise-day-group">
-      <details open>
+      <details>
         <summary className="exercise-day-summary">
           <span className="exercise-day-label">{label}</span>
           <span className="exercise-day-meta muted">
