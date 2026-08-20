@@ -150,6 +150,8 @@ Push anything to `main`, or go to **Actions → Deploy to GitHub Pages → Run w
 
 </details>
 
+<a name="level-2-withings"></a>
+
 ### 🔵 Level 2 — add Withings (needs an Azure subscription)
 
 Withings' token endpoint demands a `client_secret` for the code exchange **and** every refresh, and a
@@ -310,6 +312,78 @@ The two sides share nothing but the page they render on.
 
 Missing Google config **fails** the build — a site nobody can sign into isn't worth shipping. Missing
 Withings config only logs a warning and deploys Google-only. That asymmetry is on purpose. 🙂
+
+---
+
+## 🏗️ Architecture
+
+```mermaid
+flowchart LR
+    Browser["Browser (SPA)"]
+
+    subgraph GHP["GitHub Pages"]
+        Pages["Static build<br/>React + Vite"]
+    end
+
+    subgraph GoogleCloud["Google"]
+        GoogleAPI["Google Health API"]
+    end
+
+    subgraph WithingsCloud["Withings"]
+        WithingsAPI["Withings API<br/>measurements"]
+        WithingsToken["Withings token endpoint"]
+    end
+
+    subgraph Azure["Azure"]
+        Broker["Function App: broker<br/>Withings token exchange/refresh"]
+        KV["Key Vault<br/>Withings client_secret"]
+        BrokerStorage["Storage account<br/>deployment package"]
+
+        Bloodwork["Function App: bloodwork<br/>upload / jobs / data / correct"]
+        BwStorage["Storage account<br/>Blob + Table + Queue"]
+        DI["Document Intelligence<br/>prebuilt layout model"]
+    end
+
+    Browser -->|loads app| Pages
+    Browser -->|direct, CORS-open| GoogleAPI
+    Browser -->|direct, measurements| WithingsAPI
+    Browser -->|token exchange/refresh| Broker
+    Browser -->|"upload/poll/list/correct, Bearer: Google token"| Bloodwork
+
+    Broker -->|reads secret| KV
+    Broker -->|exchanges code/refreshes| WithingsToken
+    Broker -.deployment only.- BrokerStorage
+
+    Bloodwork -->|uploaded doc| BwStorage
+    Bloodwork -->|processing queue| BwStorage
+    Bloodwork -->|jobs + results tables| BwStorage
+    Bloodwork -->|managed identity| DI
+```
+
+**Why these services:**
+
+- **GitHub Pages** — the easy way to host a static site: no servers, no additional Azure resources,
+  free for a public repo. The project started out as Google Health only, which is nothing but static
+  files calling an API directly, so Pages was the obvious fit — and it never needed to change, since
+  Withings and Bloodwork both talk to their backends straight from the browser. Pages only ever serves
+  the SPA itself.
+- **Azure Function for the Withings broker** — the [Level 2](#level-2-withings) section above covers
+  this one: Withings' token endpoint requires a `client_secret` that a static site cannot hold, so a
+  small stateless function exists purely to swap tokens.
+- **Azure Function + Table Storage for bloodwork** — chosen mainly because they need almost no glue
+  code. A Function App needs a storage account regardless — Flex Consumption stores its own deployment
+  package there — so reusing that same account for blob (uploaded documents), queue (the async
+  processing trigger) and table (parsed results) storage turns three resources into one. Table
+  Storage's schema-less rows are also a complete match for the data shape: "one row per analyte per
+  report date" needs no relational joins, no document database, and none of Cosmos DB's setup and
+  cost overhead.
+- **Document Intelligence** — its prebuilt Layout model reads a table's rows, columns and header cells
+  out of a PDF or scanned photo without training a custom model first, and it's genuinely cheap for
+  personal use: [pay-as-you-go pricing](https://azure.microsoft.com/pricing/details/ai-document-intelligence/)
+  for the Layout/prebuilt tier is **$10 per 1,000 pages** (S0, no monthly minimum) — a multi-page lab
+  report costs a few cents to parse. Check the pricing page for your region before relying on that
+  figure; it's confirmed against the Azure Retail Prices API as of August 2026, not guaranteed to
+  stay put.
 
 ---
 
