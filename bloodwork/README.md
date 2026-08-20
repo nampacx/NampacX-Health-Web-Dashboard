@@ -121,6 +121,29 @@ retrying can't help, so the job is marked `failed` immediately) and transient
 built-in retry via `host.json`'s `maxDequeueCount`, only marked `failed` on the final
 attempt).
 
+### Storage layout
+
+| Table | PartitionKey | RowKey |
+| --- | --- | --- |
+| `bloodworkJobs` | `job` (constant) | `documentId` (a GUID) |
+| `bloodworkResults` | the owner's Google `sub` | `{reportDate}\|{analyteCode}` |
+| `bloodworkUsers` | `user` (constant) | the account's Google `sub` |
+
+**The owner is the partition key in `bloodworkResults`, and that is load-bearing.**
+Rows used to be keyed `(reportDate, analyteCode)` with the owner as an ordinary
+column. That read correctly — every list and lookup filtered on it — but it did not
+*write* correctly: `WriteRowsAsync` upserts, and the upsert matched on date and
+analyte alone, so any two accounts holding a report from the same day silently
+overwrote each other on every shared lab code, owner included. Lab short codes are
+shared across every patient of a lab and report dates cluster on weekdays, so that
+was an ordinary accident, not just an attack. Keying by owner makes the collision
+unrepresentable rather than guarded against, and turns `GET /bloodwork/data` into a
+single-partition read instead of a scan across every user's rows.
+
+The route contract is unchanged by this: the API returns, and `PUT
+/bloodwork/data/{date}/{analyte}` accepts, the **analyte half** of the RowKey — the
+date already travels as its own path segment (`ResultsRepository.AnalyteKeyOf`).
+
 `Services/LayoutParser.cs` matches the results table **structurally** — by scanning
 for a header row whose cells match a known set of German column names (`Analyse`,
 `Bezeichnung`, `Ergebniswert`, `+/-`, `Einheit`, `Ergebnistext`, `Normbereich`) —

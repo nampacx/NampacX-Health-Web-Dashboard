@@ -35,7 +35,7 @@ public sealed class BloodworkJobEntity : ITableEntity
     /// <summary>ISO 8601.</summary>
     public string UpdatedAt { get; set; } = string.Empty;
 
-    /// <summary>ISO YYYY-MM-DD. Set on completion -- matches the resulting rows' PartitionKey in bloodworkResults.</summary>
+    /// <summary>ISO YYYY-MM-DD. Set on completion -- matches the resulting rows' ReportDate in bloodworkResults (and the prefix of their RowKey).</summary>
     public string? ReportDate { get; set; }
 
     /// <summary>Set on completion.</summary>

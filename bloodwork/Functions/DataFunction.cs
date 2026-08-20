@@ -13,7 +13,7 @@ public sealed class DataFunction(ResultsRepository resultsRepository)
         FunctionContext context,
         CancellationToken ct)
     {
-        // Grouped by report date (PartitionKey), not returned as a flat
+        // Grouped by report date, not returned as a flat
         // array of {date, entries} groups: the date string round-trips
         // straight into PUT /bloodwork/data/{date}/{analyte}, and the SPA
         // can build a timeline with Object.keys(data).sort() with no extra
@@ -22,19 +22,24 @@ public sealed class DataFunction(ResultsRepository resultsRepository)
 
         await foreach (var entity in resultsRepository.ListForOwnerAsync(CallerContext.RequireGoogleSub(context), ct))
         {
-            if (!grouped.TryGetValue(entity.PartitionKey, out var entries))
+            // ReportDate, not PartitionKey: the partition is the caller's own
+            // subject id now, and the date rides in the row's own column (and in
+            // its RowKey prefix) instead.
+            if (!grouped.TryGetValue(entity.ReportDate, out var entries))
             {
                 entries = [];
-                grouped[entity.PartitionKey] = entries;
+                grouped[entity.ReportDate] = entries;
             }
 
             entries.Add(new
             {
-                // RowKey, not Analyse: they diverge whenever Analyse needed
-                // sanitizing or deduping (see ResultsRepository.MakeUniqueRowKey),
-                // and RowKey is what PUT /bloodwork/data/{date}/{analyte} actually
-                // matches on -- callers must round-trip this, not analyse.
-                rowKey = entity.RowKey,
+                // The analyte half of the RowKey, not Analyse: they diverge
+                // whenever Analyse needed sanitizing or deduping (see
+                // ResultsRepository.MakeUniqueAnalyteKey), and this is what PUT
+                // /bloodwork/data/{date}/{analyte} actually matches on -- callers
+                // must round-trip this, not analyse. The date half is stripped
+                // because it already travels as its own path segment.
+                rowKey = ResultsRepository.AnalyteKeyOf(entity.RowKey),
                 analyse = entity.Analyse,
                 bezeichnung = entity.Bezeichnung,
                 ergebniswert = entity.Ergebniswert,
