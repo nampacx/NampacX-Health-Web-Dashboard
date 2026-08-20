@@ -68,13 +68,14 @@ Four tabs:
 </td>
 </tr>
 <tr>
-<td colspan="2">
+<td width="50%">
 
 **🩸 Bloodwork** — the Summary table (blurred here, since it's real data) with the analyte detail
 dialog open, showing its trend chart and full history table
 <img src="assets/img/bloodwork.png" alt="Bloodwork tab: the summary table behind an open analyte detail dialog with a trend chart and history table" width="100%" />
 
 </td>
+<td width="50%"></td>
 </tr>
 </table>
 
