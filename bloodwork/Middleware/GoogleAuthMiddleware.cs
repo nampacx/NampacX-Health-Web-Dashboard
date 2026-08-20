@@ -16,9 +16,11 @@ namespace Bloodwork.Middleware;
 /// once an exception has propagated). Short-circuits OPTIONS preflight
 /// requests without checking auth. Otherwise verifies the caller's Google
 /// access token before the wrapped handler ever runs, so an unauthenticated
-/// multi-megabyte upload is rejected before its body is ever buffered.
+/// multi-megabyte upload is rejected before its body is ever buffered. The
+/// verified subject id is stashed on CallerContext for every downstream
+/// function to scope its data access to.
 /// </summary>
-public sealed class GoogleAuthMiddleware(CorsService cors, GoogleTokenVerifier tokenVerifier) : IFunctionsWorkerMiddleware
+public sealed class GoogleAuthMiddleware(CorsService cors, GoogleTokenVerifier tokenVerifier, CallerContext callerContext) : IFunctionsWorkerMiddleware
 {
     public async Task Invoke(FunctionContext context, FunctionExecutionDelegate next)
     {
@@ -59,7 +61,7 @@ public sealed class GoogleAuthMiddleware(CorsService cors, GoogleTokenVerifier t
             throw new UnauthorizedException("Missing Authorization header.");
         }
 
-        await tokenVerifier.VerifyAsync(authHeader["Bearer ".Length..]);
+        callerContext.GoogleSub = await tokenVerifier.VerifyAsync(authHeader["Bearer ".Length..]);
 
         await next(context);
     }

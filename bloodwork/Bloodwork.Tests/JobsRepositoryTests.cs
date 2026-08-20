@@ -21,7 +21,7 @@ public class JobsRepositoryTests
             .ReturnsAsync(Mock.Of<Response>());
 
         var repository = new JobsRepository(table.Object);
-        await repository.CreateAsync("doc-1", "doc-1.pdf", "application/pdf");
+        await repository.CreateAsync("doc-1", "doc-1.pdf", "application/pdf", "user-sub-1");
 
         Assert.NotNull(captured);
         Assert.Equal("job", captured!.PartitionKey);
@@ -29,6 +29,7 @@ public class JobsRepositoryTests
         Assert.Equal("pending", captured.Status);
         Assert.Equal("doc-1.pdf", captured.BlobName);
         Assert.Equal("application/pdf", captured.ContentType);
+        Assert.Equal("user-sub-1", captured.Sub);
         Assert.False(string.IsNullOrEmpty(captured.CreatedAt));
     }
 

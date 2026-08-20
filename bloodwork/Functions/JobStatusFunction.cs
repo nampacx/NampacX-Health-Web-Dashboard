@@ -1,3 +1,4 @@
+using Bloodwork.Models.Exceptions;
 using Bloodwork.Services;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -5,7 +6,7 @@ using Microsoft.Azure.Functions.Worker;
 
 namespace Bloodwork.Functions;
 
-public sealed class JobStatusFunction(JobsRepository jobsRepository)
+public sealed class JobStatusFunction(JobsRepository jobsRepository, CallerContext callerContext)
 {
     [Function("BloodworkJobStatus")]
     public async Task<IActionResult> Run(
@@ -14,6 +15,14 @@ public sealed class JobStatusFunction(JobsRepository jobsRepository)
         CancellationToken ct)
     {
         var job = await jobsRepository.GetAsync(documentId, ct);
+
+        // Same "not found" a missing id gets -- confirming a job exists
+        // under someone else's account is its own information leak.
+        if (!string.Equals(job.Sub, callerContext.RequireGoogleSub(), StringComparison.Ordinal))
+        {
+            throw new NotFoundException($"No upload found with id '{documentId}'.");
+        }
+
         return new OkObjectResult(new
         {
             documentId = job.RowKey,

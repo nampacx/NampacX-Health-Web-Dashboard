@@ -5,7 +5,7 @@ using Microsoft.Azure.Functions.Worker;
 
 namespace Bloodwork.Functions;
 
-public sealed class DataFunction(ResultsRepository resultsRepository)
+public sealed class DataFunction(ResultsRepository resultsRepository, CallerContext callerContext)
 {
     [Function("BloodworkData")]
     public async Task<IActionResult> Run(
@@ -19,7 +19,7 @@ public sealed class DataFunction(ResultsRepository resultsRepository)
         // find-by-date step.
         var grouped = new Dictionary<string, List<object>>();
 
-        await foreach (var entity in resultsRepository.ListAllAsync(ct))
+        await foreach (var entity in resultsRepository.ListForOwnerAsync(callerContext.RequireGoogleSub(), ct))
         {
             if (!grouped.TryGetValue(entity.PartitionKey, out var entries))
             {

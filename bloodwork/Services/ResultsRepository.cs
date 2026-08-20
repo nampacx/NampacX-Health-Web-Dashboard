@@ -14,7 +14,7 @@ public sealed class ResultsRepository([FromKeyedServices("results")] TableClient
     public static readonly IReadOnlyCollection<string> CorrectableFields =
         ["ergebniswert", "flag", "einheit", "ergebnistext", "normbereich"];
 
-    public async Task WriteRowsAsync(string reportDate, IReadOnlyList<AnalyteRow> rows, string sourceDocumentId, CancellationToken ct = default)
+    public async Task WriteRowsAsync(string reportDate, IReadOnlyList<AnalyteRow> rows, string sourceDocumentId, string sub, CancellationToken ct = default)
     {
         var extractedAt = DateTimeOffset.UtcNow.ToString("O");
         var seenRowKeys = new HashSet<string>(StringComparer.Ordinal);
@@ -34,6 +34,7 @@ public sealed class ResultsRepository([FromKeyedServices("results")] TableClient
                 Ergebnistext = row.Ergebnistext,
                 Normbereich = row.Normbereich,
                 SourceDocumentId = sourceDocumentId,
+                Sub = sub,
                 ExtractedAt = extractedAt,
                 Corrected = false,
             };
@@ -41,16 +42,17 @@ public sealed class ResultsRepository([FromKeyedServices("results")] TableClient
         }
     }
 
-    public async IAsyncEnumerable<BloodworkResultEntity> ListAllAsync([System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct = default)
+    public async IAsyncEnumerable<BloodworkResultEntity> ListForOwnerAsync(
+        string sub, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct = default)
     {
-        await foreach (var entity in table.QueryAsync<BloodworkResultEntity>(cancellationToken: ct))
+        await foreach (var entity in table.QueryAsync<BloodworkResultEntity>(e => e.Sub == sub, cancellationToken: ct))
         {
             yield return entity;
         }
     }
 
     public async Task<BloodworkResultEntity> CorrectAsync(
-        string reportDate, string analyte, IReadOnlyDictionary<string, string> patch, CancellationToken ct = default)
+        string reportDate, string analyte, string sub, IReadOnlyDictionary<string, string> patch, CancellationToken ct = default)
     {
         BloodworkResultEntity entity;
         try
@@ -59,6 +61,13 @@ public sealed class ResultsRepository([FromKeyedServices("results")] TableClient
             entity = response.Value;
         }
         catch (RequestFailedException ex) when (ex.Status == 404)
+        {
+            throw new NotFoundException($"No result found for analyte '{analyte}' on {reportDate}.");
+        }
+
+        // Same message as the row-not-found case above -- confirming a row
+        // exists under someone else's account is its own information leak.
+        if (!string.Equals(entity.Sub, sub, StringComparison.Ordinal))
         {
             throw new NotFoundException($"No result found for analyte '{analyte}' on {reportDate}.");
         }

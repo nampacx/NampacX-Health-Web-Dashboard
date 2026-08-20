@@ -33,6 +33,14 @@ public sealed class BloodworkResultEntity : ITableEntity
     /// <summary>Links back to the owning bloodworkJobs.RowKey.</summary>
     public string SourceDocumentId { get; set; } = string.Empty;
 
+    /// <summary>
+    /// The uploader's Google subject id, copied from the owning job at write
+    /// time. Denormalized rather than looked up per row through
+    /// SourceDocumentId -- DataFunction lists every row for a caller on every
+    /// request, and that must not mean one job lookup per row.
+    /// </summary>
+    public string Sub { get; set; } = string.Empty;
+
     /// <summary>ISO 8601.</summary>
     public string ExtractedAt { get; set; } = string.Empty;
 

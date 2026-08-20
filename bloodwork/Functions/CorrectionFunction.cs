@@ -7,7 +7,7 @@ using Microsoft.Azure.Functions.Worker;
 
 namespace Bloodwork.Functions;
 
-public sealed class CorrectionFunction(ResultsRepository resultsRepository)
+public sealed class CorrectionFunction(ResultsRepository resultsRepository, CallerContext callerContext)
 {
     [Function("BloodworkCorrection")]
     public async Task<IActionResult> Run(
@@ -38,7 +38,7 @@ public sealed class CorrectionFunction(ResultsRepository resultsRepository)
             throw new BadRequestException("No correctable fields supplied.");
         }
 
-        var updated = await resultsRepository.CorrectAsync(date, analyte, patch, ct);
+        var updated = await resultsRepository.CorrectAsync(date, analyte, callerContext.RequireGoogleSub(), patch, ct);
 
         return new OkObjectResult(new
         {

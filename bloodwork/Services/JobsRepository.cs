@@ -10,7 +10,7 @@ public sealed class JobsRepository([FromKeyedServices("jobs")] TableClient table
 {
     private const string PartitionKey = "job";
 
-    public async Task CreateAsync(string documentId, string blobName, string contentType, CancellationToken ct = default)
+    public async Task CreateAsync(string documentId, string blobName, string contentType, string sub, CancellationToken ct = default)
     {
         var now = DateTimeOffset.UtcNow.ToString("O");
         var entity = new BloodworkJobEntity
@@ -20,6 +20,7 @@ public sealed class JobsRepository([FromKeyedServices("jobs")] TableClient table
             Status = "pending",
             BlobName = blobName,
             ContentType = contentType,
+            Sub = sub,
             CreatedAt = now,
             UpdatedAt = now,
         };
@@ -39,7 +40,7 @@ public sealed class JobsRepository([FromKeyedServices("jobs")] TableClient table
         }
     }
 
-    public Task MarkProcessingAsync(string documentId, CancellationToken ct = default) =>
+    public Task<BloodworkJobEntity> MarkProcessingAsync(string documentId, CancellationToken ct = default) =>
         UpdateAsync(documentId, entity => entity.Status = "processing", ct);
 
     public Task MarkCompletedAsync(string documentId, string reportDate, int rowCount, CancellationToken ct = default) =>
@@ -57,11 +58,12 @@ public sealed class JobsRepository([FromKeyedServices("jobs")] TableClient table
             entity.ErrorMessage = errorMessage;
         }, ct);
 
-    private async Task UpdateAsync(string documentId, Action<BloodworkJobEntity> mutate, CancellationToken ct)
+    private async Task<BloodworkJobEntity> UpdateAsync(string documentId, Action<BloodworkJobEntity> mutate, CancellationToken ct)
     {
         var entity = await GetAsync(documentId, ct);
         mutate(entity);
         entity.UpdatedAt = DateTimeOffset.UtcNow.ToString("O");
         await table.UpdateEntityAsync(entity, entity.ETag, TableUpdateMode.Replace, ct);
+        return entity;
     }
 }
