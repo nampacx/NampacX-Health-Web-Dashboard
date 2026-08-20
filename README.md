@@ -1,11 +1,15 @@
 # 🩺 NampacX Health Dashboard
 
-A little React + Vite dashboard that shows you your own health data — activity, sleep stages, and
-body-composition weigh-ins — in one place. 📊
+A little React + Vite dashboard that shows you your own health data — activity, sleep stages,
+body-composition weigh-ins, and bloodwork — in one place. 📊
 
 **Two providers, completely independent.** Connect [Google Health](https://developers.google.com/health/about),
 connect [Withings](https://developer.withings.com/developer-guide/v3/integration-guide/public-health-data-api/public-health-data-api-overview),
 or connect both. Neither needs the other.
+
+There's also an optional **Bloodwork** tab: upload a lab-report PDF or scan and it gets parsed and
+tracked over time. It isn't a third provider — it rides on the same Google sign-in rather than adding
+its own OAuth flow — so it's covered separately below rather than in the provider comparisons.
 
 ---
 
@@ -21,12 +25,13 @@ or connect both. Neither needs the other.
 
 ## ✨ What you get
 
-Three tabs — one per data source:
+Four tabs:
 
 | Tab | What's in it |
 | --- | --- |
 | 🏃 **Google Health** | Three views, sharing one data-type picker and time range:<br>😴 **Sleep** — a proper stage timeline per night (awake / REM / light / deep), composition bar, time in bed, efficiency, short awakenings, plus HRV and heart rate *while you were asleep*.<br>💪 **Exercise** — a card per workout with its most interesting numbers surfaced first, and totals for the window.<br>📋 **All activity** — steps, distance, floors, active minutes, calories and everything else you've selected, grouped by day, newest first. |
 | ⚖️ **Withings** | Weight and fat-ratio charts over time, and a card per weigh-in with the change since the last one. |
+| 🩸 **Bloodwork** | Upload a lab-report PDF or photo and it's parsed automatically. Two views: **Summary** — one row per analyte with only its latest value and a *Last tested* date, click a row for a trend chart plus the full history table behind it; **Reports** — every value from every upload, grouped by report date, with inline correction for anything the parser got wrong. |
 | 🔧 **Technical details** | Raw fetch outcomes, token state, the boring-but-useful debugging view. |
 
 > 💡 **Sleep Score and Readiness aren't here** — and can't be. Google doesn't expose them through the
@@ -37,9 +42,9 @@ Three tabs — one per data source:
 
 ## 🚀 Fork it and deploy
 
-There are two levels here. **Level 1 is the easy one**, and it's genuinely enough — you get the whole
-Google Health side, including all the sleep stuff, with no backend, no cloud bill, and no Azure
-account. Level 2 only exists because Withings makes you have a server. 🙃
+There are three levels here. **Level 1 is the easy one**, and it's genuinely enough — you get the
+whole Google Health side, including all the sleep stuff, with no backend, no cloud bill, and no Azure
+account. Levels 2 and 3 only exist because Withings and Bloodwork each need a server. 🙃
 
 ### 🟢 Level 1 — Google Health only (~10 minutes, free)
 
@@ -161,6 +166,44 @@ You can also do it from your own machine with [`azd`](https://aka.ms/azd): `azd 
 
 📖 More detail, including the error contract the SPA depends on: [broker/README.md](broker/README.md).
 
+### 🟣 Level 3 — add Bloodwork tracking (needs Level 2 done first)
+
+Bloodwork reuses the Google sign-in you already have — no separate OAuth app to register — but
+parsing a PDF needs a real backend, so it shares [`broker/`](broker/)'s Azure setup (same
+`infra/main.bicep`, same `azd up`, same deploy workflow) plus an
+[Azure AI Document Intelligence](https://azure.microsoft.com/products/ai-services/ai-document-intelligence)
+resource for the actual layout extraction.
+
+**1. Do Level 2 first.** Bloodwork is provisioned by the same template as the broker, so you need the
+Azure OIDC login from Level 2's step 2 regardless of whether you actually want Withings.
+
+**2. Add two more repository variables** under **Settings → Secrets and variables → Actions →
+Variables**:
+
+| Name | Value |
+| --- | --- |
+| `GOOGLE_CLIENT_ID` | same value as `VITE_GOOGLE_CLIENT_ID` — the *backend* checks the `aud` claim on every request against this, separately from the SPA build |
+| `BLOODWORK_ALLOWED_ORIGINS` | your Pages origin, same as `WITHINGS_ALLOWED_ORIGINS` |
+
+**3. Deploy.** The same push-to-`main` (or manual **Deploy Azure Functions** run) from Level 2
+provisions the Document Intelligence resource and the bloodwork Function App together with the
+broker — there's nothing extra to trigger. Grab the bloodwork Function's URL from the deploy output
+and set:
+
+| Name | Value |
+| --- | --- |
+| `VITE_BLOODWORK_API_URL` | `https://<your-bloodwork-function-app>.azurewebsites.net/api`, no trailing slash |
+
+**4. Upload a lab report.** 🩸 Sign in, open the Bloodwork tab, upload a PDF or photo. It's queued
+and parsed asynchronously (usually a few seconds), then shows up in both **Reports** and **Summary**.
+
+> 💰 Document Intelligence's prebuilt layout model deploys at the `S0` tier and bills per page
+> analyzed — nothing like the broker's scale-to-zero-and-forget-it cost profile. Fine for personal
+> use, worth knowing about before you upload a stack of reports.
+
+📖 More detail — the routes, the async upload pipeline, local dev with Azurite:
+[bloodwork/README.md](bloodwork/README.md).
+
 ---
 
 ## 💻 Run it locally
@@ -175,8 +218,8 @@ npm run dev
 
 Open <http://localhost:5173> and hit **Sign in with Google**. ✨
 
-Withings is optional here too — leave its block in `.env.local` blank and that tab just shows a
-"connect" prompt.
+Withings and Bloodwork are optional here too — leave their blocks in `.env.local` blank and those
+tabs just show a "connect" / "not configured" prompt.
 
 ```bash
 npm run typecheck   # strict TS
@@ -190,6 +233,14 @@ The broker is its own little npm project:
 ```bash
 cd broker && npm install && npm test
 cd broker && npm start   # http://localhost:7071
+```
+
+Bloodwork is a .NET project and needs [Azurite](https://learn.microsoft.com/azure/storage/common/storage-use-azurite)
+for its queue trigger — see [bloodwork/README.md](bloodwork/README.md) for the full local setup:
+
+```bash
+cd bloodwork && dotnet build && dotnet test
+cd bloodwork && func start --port 7072   # 7071 is broker's
 ```
 
 > 🧪 Tests are Vitest with **no jsdom** — everything under test is pure logic (normalization, token
@@ -219,6 +270,8 @@ Withings config only logs a warning and deploys Google-only. That asymmetry is o
 ## 🗺️ How it's put together
 
 Both providers flow the same way: **auth → fetch → normalize → render**, and never touch each other.
+Bloodwork adds one more step at the front (**upload → parse**) but reuses Google's auth rather than
+inventing its own.
 
 | Where | What it does |
 | --- | --- |
@@ -231,6 +284,10 @@ Both providers flow the same way: **auth → fetch → normalize → render**, a
 | [src/auth/withings/](src/auth/withings/) | Authorize redirect, broker calls, token rotation safety |
 | [src/api/withings/](src/api/withings/) | `getmeas` client and measure normalization |
 | [broker/](broker/) | The Azure Function that holds the Withings secret |
+| [src/state/bloodworkData.tsx](src/state/bloodworkData.tsx) | Upload, job polling, results and corrections — reuses the Google access token, no separate auth |
+| [src/api/bloodwork/summary.ts](src/api/bloodwork/summary.ts) | Every report → one row per analyte, latest value only |
+| [src/api/bloodwork/analyteHistory.ts](src/api/bloodwork/analyteHistory.ts) | One analyte → its full history, for the detail chart and table |
+| [bloodwork/](bloodwork/) | The Azure Function that runs Document Intelligence and stores results |
 
 ---
 
@@ -317,6 +374,32 @@ checkbox, because a year-long credential in `localStorage` is a much bigger XSS 
 </details>
 
 <details>
+<summary>🩸 Bloodwork's identity problem: three names for the same thing</summary>
+
+A lab report row carries `analyse` (the lab's own code for the test), `bezeichnung` (its
+human-readable label), and a Table Storage `rowKey` (a sanitized, deduped version of `analyse`, used
+for corrections). All three look interchangeable and aren't:
+
+- The **Summary** and detail-history views group by `analyse` — it's the stable identity across
+  reports. `bezeichnung` is display text a lab can phrase slightly differently between visits, so
+  grouping by it would silently split one analyte's history into two.
+- Every table **displays** `bezeichnung || analyse` — the code alone is a poor headline.
+- **Corrections** go by `rowKey`, not `analyse`, because `rowKey` is what actually survived Table
+  Storage's character restrictions and per-report deduping; two rows can share an `analyse` after
+  sanitizing collapses them, and only `rowKey` still tells them apart.
+
+(And the header says "Analyte", not "Analyse" — that's not a typo. It's the correct English term for
+what's being measured; `analyse` only survives as a *field name* because it mirrors the German lab
+report's own column, the same way `bezeichnung` does.)
+
+Result values are also German-formatted decimals (`"4,70"`, comma not dot) while reference ranges in
+the same document use a dot (`"3.5 - 5.1"`) — an OCR/layout quirk of the source reports, not
+inconsistency in this codebase. `analyteHistory.ts`'s `parseAnalyteValue` normalizes the comma before
+parsing a chart point; get it backwards and `"4,70"` silently becomes `4`, not `4.7`.
+
+</details>
+
+<details>
 <summary>🕵️ Withings reports everything as the same error</summary>
 
 A wrong `client_secret`, a dead refresh token, a bad code — Withings answers all of them with the
@@ -351,5 +434,7 @@ whether to *keep or destroy* your refresh token based on that answer.
 WIP, and honest about it. Plenty left to add and change — but it works, and it's read-only, so the
 worst it can do is show you a number you didn't like. 😄
 
-Data from the [Google Health API](https://developers.google.com/health/about) and the
-[Withings API](https://developer.withings.com/developer-guide/v3/integration-guide/public-health-data-api/public-health-data-api-overview).
+Data from the [Google Health API](https://developers.google.com/health/about), the
+[Withings API](https://developer.withings.com/developer-guide/v3/integration-guide/public-health-data-api/public-health-data-api-overview),
+and lab reports you upload yourself, parsed by
+[Azure AI Document Intelligence](https://azure.microsoft.com/products/ai-services/ai-document-intelligence).
