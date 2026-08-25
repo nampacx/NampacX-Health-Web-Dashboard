@@ -1,3 +1,4 @@
+import { analyteIdentity } from './analyteIdentity'
 import type { BloodworkResultRow, BloodworkResultsByDate } from './types'
 
 export interface AnalyteHistoryEntry {
@@ -9,15 +10,20 @@ export interface AnalyteHistoryEntry {
  * Every recorded value for one analyte, oldest first -- the order the chart
  * wants, and report dates are ISO YYYY-MM-DD so a plain string sort is also a
  * chronological one.
+ *
+ * `identity` is `analyteIdentity`'s normalized key, not the raw `analyse`
+ * field -- matching on the latter missed rows whose source report spelled
+ * the same test's "Analyse" cell differently (case, stray whitespace) from
+ * the row `buildSummaryRows` picked as the latest.
  */
 export function buildAnalyteHistory(
   resultsByDate: BloodworkResultsByDate,
-  analyse: string,
+  identity: string,
 ): AnalyteHistoryEntry[] {
   const entries: AnalyteHistoryEntry[] = []
   for (const [date, rows] of Object.entries(resultsByDate)) {
     for (const row of rows) {
-      if (row.analyse === analyse) entries.push({ date, row })
+      if (analyteIdentity(row) === identity) entries.push({ date, row })
     }
   }
   return entries.sort((a, b) => a.date.localeCompare(b.date))

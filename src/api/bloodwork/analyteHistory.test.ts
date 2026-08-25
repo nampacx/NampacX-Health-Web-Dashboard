@@ -26,21 +26,42 @@ function row(overrides: Partial<BloodworkResultRow>): BloodworkResultRow {
 }
 
 describe('buildAnalyteHistory', () => {
-  it('returns only rows for the requested analyte, oldest first', () => {
+  it('returns only rows for the requested identity, oldest first', () => {
     const byDate: BloodworkResultsByDate = {
-      '2026-06-15': [row({ ergebniswert: '5,1' }), row({ analyse: 'hdl', rowKey: 'hdl' })],
+      '2026-06-15': [
+        row({ ergebniswert: '5,1' }),
+        row({ analyse: 'hdl', bezeichnung: 'HDL-Cholesterin', rowKey: 'hdl' }),
+      ],
       '2026-01-01': [row({ ergebniswert: '5,4' })],
     }
 
-    const history = buildAnalyteHistory(byDate, 'chol')
+    const history = buildAnalyteHistory(byDate, 'cholesterin')
 
     expect(history.map((entry) => entry.date)).toEqual(['2026-01-01', '2026-06-15'])
-    expect(history.every((entry) => entry.row.analyse === 'chol')).toBe(true)
+    expect(history.every((entry) => entry.row.bezeichnung === 'Cholesterin')).toBe(true)
   })
 
-  it('returns nothing for an analyte that was never recorded', () => {
+  it('returns nothing for an identity that was never recorded', () => {
     const byDate: BloodworkResultsByDate = { '2026-01-01': [row({})] }
     expect(buildAnalyteHistory(byDate, 'unknown')).toEqual([])
+  })
+
+  it('matches across a different raw analyse code when the displayed name is the same', () => {
+    const byDate: BloodworkResultsByDate = {
+      '2024-11-21': [row({ analyse: 'CHOL', bezeichnung: 'Cholesterin' })],
+      '2026-05-18': [row({ analyse: 'cholesterin-total', bezeichnung: 'Cholesterin' })],
+    }
+
+    expect(buildAnalyteHistory(byDate, 'cholesterin')).toHaveLength(2)
+  })
+
+  it('matches across whitespace and case differences in the displayed name', () => {
+    const byDate: BloodworkResultsByDate = {
+      '2024-11-21': [row({ bezeichnung: 'Cholesterin' })],
+      '2026-05-18': [row({ bezeichnung: '  CHOLESTERIN  ' })],
+    }
+
+    expect(buildAnalyteHistory(byDate, 'cholesterin')).toHaveLength(2)
   })
 })
 

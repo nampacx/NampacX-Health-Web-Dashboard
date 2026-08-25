@@ -11,30 +11,31 @@ import LineChart from '../charts/LineChart'
 
 interface Props {
   resultsByDate: BloodworkResultsByDate
-  /** Null closes the dialog -- there's nothing to look up. */
-  analyse: string | null
+  /** Null closes the dialog -- there's nothing to look up. `analyteIdentity`'s
+   * normalized key, not the raw `analyse` field -- see that function for why. */
+  identity: string | null
   onClose: () => void
 }
 
 /** Every recorded value for one analyte: a trend line plus the full history
  * table, opened from a click on its row in the summary view. */
-export default function BloodworkAnalyteDialog({ resultsByDate, analyse, onClose }: Props) {
+export default function BloodworkAnalyteDialog({ resultsByDate, identity, onClose }: Props) {
   const dialogRef = useRef<HTMLDialogElement>(null)
 
   // <dialog> owns its own open/closed state; this keeps it in sync with
-  // `analyse` going from null to a value and back, in either direction --
+  // `identity` going from null to a value and back, in either direction --
   // Esc and the backdrop click close it natively, so onClose has to be able
   // to fire from inside the element too, not just from our own button.
   useEffect(() => {
     const dialog = dialogRef.current
     if (!dialog) return
-    if (analyse !== null && !dialog.open) dialog.showModal()
-    if (analyse === null && dialog.open) dialog.close()
-  }, [analyse])
+    if (identity !== null && !dialog.open) dialog.showModal()
+    if (identity === null && dialog.open) dialog.close()
+  }, [identity])
 
   const history = useMemo(
-    () => (analyse === null ? [] : buildAnalyteHistory(resultsByDate, analyse)),
-    [resultsByDate, analyse],
+    () => (identity === null ? [] : buildAnalyteHistory(resultsByDate, identity)),
+    [resultsByDate, identity],
   )
 
   const points = useMemo(
@@ -47,7 +48,7 @@ export default function BloodworkAnalyteDialog({ resultsByDate, analyse, onClose
   )
 
   const latestRow = history.at(-1)?.row
-  const label = latestRow?.bezeichnung || analyse || ''
+  const label = latestRow?.bezeichnung || latestRow?.analyse || identity || ''
   const unit = latestRow?.einheit ?? ''
   const decimals = useMemo(() => inferDecimals(history.map(({ row }) => row.ergebniswert)), [history])
 
@@ -62,7 +63,7 @@ export default function BloodworkAnalyteDialog({ resultsByDate, analyse, onClose
         if (event.target === event.currentTarget) dialogRef.current?.close()
       }}
     >
-      {analyse !== null && (
+      {identity !== null && (
         <>
           <div className="dialog-head">
             <h2>{label}</h2>
