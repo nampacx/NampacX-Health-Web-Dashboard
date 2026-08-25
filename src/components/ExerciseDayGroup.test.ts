@@ -21,6 +21,7 @@ describe('ExerciseDayGroup', () => {
               {
                 key: 's1',
                 title: 'Morning Trail Run',
+                displayName: 'Morning Trail Run',
                 exerciseType: 'RUNNING',
                 start: new Date('2026-08-17T06:00:00.000Z'),
                 end: new Date('2026-08-17T06:30:00.000Z'),

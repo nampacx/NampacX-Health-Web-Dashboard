@@ -27,6 +27,7 @@ export interface ExerciseSession {
   key: string
   /** `displayName`, else a humanized `exerciseType`, else "Workout". */
   title: string
+  displayName: string | null
   exerciseType: string | null
   start: Date | null
   end: Date | null
@@ -178,6 +179,7 @@ export function parseExerciseRecord(record: HealthRecord): ExerciseSession {
   return {
     key: record.key,
     title: displayName ?? (exerciseType ? humanizeExerciseType(exerciseType) : 'Workout'),
+    displayName,
     exerciseType,
     start,
     end,
@@ -282,8 +284,12 @@ export function exerciseDailyTotals(sessions: ExerciseSession[]): ExerciseDayTot
   for (const session of [...sessions].sort((a, b) => (a.start?.getTime() ?? 0) - (b.start?.getTime() ?? 0))) {
     if (!session.start) continue
     const dateKey = localDateKey(session.start, session.utcOffsetSeconds)
-    const typeKey = session.exerciseType ?? 'unknown'
-    const typeLabel = session.exerciseType ? humanizeExerciseType(session.exerciseType) : 'Other workouts'
+    const typeKey = session.displayName
+      ? `display:${session.displayName}`
+      : (session.exerciseType ?? 'unknown')
+    const typeLabel = session.displayName
+      ? session.displayName
+      : (session.exerciseType ? humanizeExerciseType(session.exerciseType) : 'Other workouts')
     const durationMs = session.durationMs ?? 0
     const current = byDate.get(dateKey)
     if (current) {

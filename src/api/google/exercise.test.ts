@@ -51,12 +51,14 @@ describe('exerciseSessions', () => {
 
   it('leads with the display name', () => {
     expect(run.title).toBe('Morning Trail Run')
+    expect(run.displayName).toBe('Morning Trail Run')
   })
 
   it('falls back to the humanized exercise type when unnamed', () => {
     const { displayName: _drop, ...rest } = RUN.exercise as Record<string, unknown>
     const [session] = exerciseSessions([record(point(rest))])
     expect(session.title).toBe('Running')
+    expect(session.displayName).toBeNull()
   })
 
   it('falls back again to "Workout" when there is nothing to go on', () => {
@@ -388,6 +390,30 @@ describe('exerciseDailyTotals', () => {
 
     expect(day.byType).toEqual([
       { typeKey: 'CYCLING', label: 'Cycling', sessions: 2, durationMs: 2_700_000 },
+    ])
+  })
+
+  it('prefers a session display name over a generic exercise type in daily labels', () => {
+    const [day] = exerciseDailyTotals(
+      exerciseSessions([
+        record(
+          point({
+            interval: { startTime: '2026-08-19T06:00:00Z', endTime: '2026-08-19T07:00:00Z' },
+            activeDuration: '3600s',
+            exerciseType: 'WORKOUT',
+            displayName: 'Upper Push (Chest)',
+          }),
+        ),
+      ]),
+    )
+
+    expect(day.byType).toEqual([
+      {
+        typeKey: 'display:Upper Push (Chest)',
+        label: 'Upper Push (Chest)',
+        sessions: 1,
+        durationMs: 3_600_000,
+      },
     ])
   })
 })

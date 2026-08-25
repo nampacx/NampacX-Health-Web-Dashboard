@@ -31,6 +31,32 @@ describe('ExerciseBarChart', () => {
     expect(markup).toContain('Cardio workout')
   })
 
+  it('renders specific workout display names in the detail table', () => {
+    const markup = renderToStaticMarkup(
+      createElement(ExerciseBarChart, {
+        days: [
+          {
+            dateKey: '2026-08-25',
+            day: new Date(Date.UTC(2026, 7, 25)),
+            sessions: 1,
+            durationMs: 72 * 60 * 1000,
+            byType: [
+              {
+                typeKey: 'display:Upper Push (Chest)',
+                label: 'Upper Push (Chest)',
+                sessions: 1,
+                durationMs: 72 * 60 * 1000,
+              },
+            ],
+          },
+        ],
+      }),
+    )
+
+    expect(markup).toContain('Upper Push (Chest)')
+    expect(markup).not.toContain('>Workout<')
+  })
+
   it('does not render per-bar svg title tooltips', () => {
     const markup = renderToStaticMarkup(createElement(ExerciseBarChart, { days }))
     expect(markup).not.toContain('<title>')
