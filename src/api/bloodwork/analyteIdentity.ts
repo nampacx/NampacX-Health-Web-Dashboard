@@ -19,12 +19,35 @@ import type { BloodworkResultRow } from './types'
  * split into two summary rows whenever two reports' "Analyse" cells didn't
  * match byte-for-byte, despite both displaying identically.
  *
- * This does NOT catch genuine label variants between report formats
- * (`"AP"` vs `"Alk. Phosphatase"`, `"Harnstoff"` vs an OCR-mangled
- * `"Hamstoff"`) -- those really are different strings, and guessing they're
- * the same test without a curated alias list risks silently merging two
- * unrelated analytes' histories, which is worse than leaving them split.
+ * Genuine label variants between report formats -- `"AP"` vs
+ * `"Alk. Phosphatase"`, an OCR-mangled `"Hamstoff"` vs `"Harnstoff"` -- are
+ * different strings even after normalizing, so they fall through to
+ * `ANALYTE_ALIASES` below: a short, hand-curated list, checked only after an
+ * exact match fails. Guessing these algorithmically (fuzzy matching,
+ * anything smarter) risks silently merging two unrelated analytes' history,
+ * which is worse than leaving them split -- so only add an entry here once
+ * you've confirmed both sides really are the same test.
  */
+
+/**
+ * Known same-test label variants, confirmed by hand from real duplicate
+ * rows across different report formats (see PR #75). Keys and values are
+ * already normalized -- trimmed, whitespace-collapsed, lowercased -- since
+ * they're matched after `analyteIdentity` normalizes its input the same way.
+ */
+const ANALYTE_ALIASES: Record<string, string> = {
+  // Abbreviation vs. full name, seen across different report formats.
+  'ap': 'alk. phosphatase',
+  'eosinoph. absolut': 'eosinophile absolut',
+  'lymphozyt absolut': 'lymphozyten absolut',
+  'neutroph. absolut': 'neutrophile seg. absolut',
+  // Word order.
+  'ges. bilirubin': 'bilirubin gesamt',
+  // OCR dropped the "r".
+  'hamstoff': 'harnstoff',
+}
+
 export function analyteIdentity(row: BloodworkResultRow): string {
-  return (row.bezeichnung || row.analyse).trim().replace(/\s+/g, ' ').toLowerCase()
+  const normalized = (row.bezeichnung || row.analyse).trim().replace(/\s+/g, ' ').toLowerCase()
+  return ANALYTE_ALIASES[normalized] ?? normalized
 }

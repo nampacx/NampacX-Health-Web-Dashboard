@@ -25,7 +25,7 @@ describe('analyteIdentity', () => {
   })
 
   it('falls back to analyse when bezeichnung is blank', () => {
-    expect(analyteIdentity(row({ analyse: 'AP', bezeichnung: '' }))).toBe('ap')
+    expect(analyteIdentity(row({ analyse: 'crp', bezeichnung: '' }))).toBe('crp')
   })
 
   it('is case-insensitive', () => {
@@ -45,8 +45,29 @@ describe('analyteIdentity', () => {
   })
 
   it('treats genuinely different labels as different identities', () => {
-    expect(analyteIdentity(row({ bezeichnung: 'AP' }))).not.toBe(
-      analyteIdentity(row({ bezeichnung: 'Alk. Phosphatase' })),
+    expect(analyteIdentity(row({ bezeichnung: 'Glucose' }))).not.toBe(
+      analyteIdentity(row({ bezeichnung: 'Cholesterin' })),
     )
+  })
+
+  describe('curated aliases', () => {
+    // Real report-format variants that don't normalize to the same string on
+    // their own, confirmed by hand -- see ANALYTE_ALIASES in analyteIdentity.ts.
+    it.each([
+      ['AP', 'Alk. Phosphatase'],
+      ['Eosinoph. absolut', 'Eosinophile absolut'],
+      ['Lymphozyt absolut', 'Lymphozyten absolut'],
+      ['Neutroph. absolut', 'Neutrophile seg. absolut'],
+      ['ges. Bilirubin', 'Bilirubin gesamt'],
+      ['Hamstoff', 'Harnstoff'],
+    ])('matches %j to %j', (a, b) => {
+      expect(analyteIdentity(row({ bezeichnung: a }))).toBe(analyteIdentity(row({ bezeichnung: b })))
+    })
+
+    it('is case-/whitespace-insensitive on the alias lookup too', () => {
+      expect(analyteIdentity(row({ bezeichnung: '  ap  ' }))).toBe(
+        analyteIdentity(row({ bezeichnung: 'Alk. Phosphatase' })),
+      )
+    })
   })
 })

@@ -58,16 +58,24 @@ describe('buildSummaryRows', () => {
     expect(buildSummaryRows(byDate)).toHaveLength(1)
   })
 
-  it('keeps genuinely different display names as separate rows, even when they are the same test', () => {
-    // "AP" vs "Alk. Phosphatase" are the same test in different report
-    // formats -- there's no way to know that without a curated alias list,
-    // so this correctly leaves them split rather than guessing.
+  it('keeps genuinely different display names as separate rows when no alias is known', () => {
+    // Not an alias -- serum amylase and pancreas-specific amylase are two
+    // different tests despite the similar names, so these should stay split.
+    const byDate: BloodworkResultsByDate = {
+      '2024-11-21': [row({ analyse: 'AMYS', bezeichnung: 'Amylase i.S.' })],
+      '2026-08-10': [row({ analyse: 'AMYP', bezeichnung: 'Pankreas-Amylase' })],
+    }
+
+    expect(buildSummaryRows(byDate)).toHaveLength(2)
+  })
+
+  it('merges a curated alias pair (an abbreviation vs. the full name)', () => {
     const byDate: BloodworkResultsByDate = {
       '2024-11-21': [row({ analyse: 'AP', bezeichnung: '' })],
       '2026-08-10': [row({ analyse: 'AP2', bezeichnung: 'Alk. Phosphatase' })],
     }
 
-    expect(buildSummaryRows(byDate)).toHaveLength(2)
+    expect(buildSummaryRows(byDate)).toHaveLength(1)
   })
 
   it('keeps distinct analytes as separate rows, sorted by label', () => {
