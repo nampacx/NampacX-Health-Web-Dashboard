@@ -187,6 +187,75 @@ public class ResultsRepositoryTests
     }
 
     [Fact]
+    public async Task CorrectAsync_AppliesBezeichnungPatch()
+    {
+        // A correctable field precisely because it isn't part of the RowKey --
+        // fixing a garbled OCR label (e.g. "rritin" -> "Ferritin") shouldn't be
+        // any riskier than fixing a wrong result value.
+        var table = new Mock<TableClient>();
+        var existing = new BloodworkResultEntity
+        {
+            PartitionKey = "user-sub-1",
+            RowKey = "2026-08-10|RRITIN",
+            ReportDate = "2026-08-10",
+            Analyse = "rritin",
+            Bezeichnung = "rritin",
+            Sub = "user-sub-1",
+            ETag = new ETag("*"),
+        };
+        table
+            .Setup(t => t.GetEntityAsync<BloodworkResultEntity>("user-sub-1", "2026-08-10|RRITIN", null, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Response.FromValue(existing, Mock.Of<Response>()));
+
+        BloodworkResultEntity? updated = null;
+        table
+            .Setup(t => t.UpdateEntityAsync(It.IsAny<BloodworkResultEntity>(), It.IsAny<ETag>(), It.IsAny<TableUpdateMode>(), It.IsAny<CancellationToken>()))
+            .Callback<BloodworkResultEntity, ETag, TableUpdateMode, CancellationToken>((e, _, _, _) => updated = e)
+            .ReturnsAsync(Mock.Of<Response>());
+
+        var repository = new ResultsRepository(table.Object);
+        await repository.CorrectAsync("2026-08-10", "RRITIN", "user-sub-1", new Dictionary<string, string> { ["bezeichnung"] = "Ferritin" });
+
+        Assert.Equal("Ferritin", updated!.Bezeichnung);
+        // The RowKey stays untouched -- Bezeichnung isn't part of it.
+        Assert.Equal("rritin", updated.Analyse);
+        Assert.Equal("2026-08-10|RRITIN", updated.RowKey);
+    }
+
+    [Fact]
+    public async Task CorrectAsync_IgnoresAnalyseEvenIfSomehowPresentInThePatch()
+    {
+        // CorrectionFunction already filters the patch against CorrectableFields
+        // before this is ever called, so this is a second, independent gate:
+        // the switch in CorrectAsync itself has no case for "analyse", so a
+        // caller that reached this method directly still can't touch it.
+        var table = new Mock<TableClient>();
+        var existing = new BloodworkResultEntity
+        {
+            PartitionKey = "user-sub-1",
+            RowKey = "2026-08-10|TESTOA",
+            ReportDate = "2026-08-10",
+            Analyse = "TESTOA",
+            Sub = "user-sub-1",
+            ETag = new ETag("*"),
+        };
+        table
+            .Setup(t => t.GetEntityAsync<BloodworkResultEntity>("user-sub-1", "2026-08-10|TESTOA", null, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Response.FromValue(existing, Mock.Of<Response>()));
+
+        BloodworkResultEntity? updated = null;
+        table
+            .Setup(t => t.UpdateEntityAsync(It.IsAny<BloodworkResultEntity>(), It.IsAny<ETag>(), It.IsAny<TableUpdateMode>(), It.IsAny<CancellationToken>()))
+            .Callback<BloodworkResultEntity, ETag, TableUpdateMode, CancellationToken>((e, _, _, _) => updated = e)
+            .ReturnsAsync(Mock.Of<Response>());
+
+        var repository = new ResultsRepository(table.Object);
+        await repository.CorrectAsync("2026-08-10", "TESTOA", "user-sub-1", new Dictionary<string, string> { ["analyse"] = "HACKED" });
+
+        Assert.Equal("TESTOA", updated!.Analyse);
+    }
+
+    [Fact]
     public async Task CorrectAsync_UnknownRow_ThrowsNotFound()
     {
         var table = new Mock<TableClient>();
