@@ -27,9 +27,9 @@ public sealed class CorrectionFunction(ResultsRepository resultsRepository)
             throw new BadRequestException("Request body is not valid JSON.");
         }
 
-        // Whitelisted: never Analyse (the row's own identity) or Bezeichnung
-        // (the lab's own label, treated as identifying metadata, not a
-        // measured value).
+        // Whitelisted: never Analyse -- see ResultsRepository.CorrectableFields
+        // for why editing it after the fact is unsafe (it's baked into the
+        // RowKey). Bezeichnung IS correctable, same place.
         var patch = (body ?? [])
             .Where(kv => ResultsRepository.CorrectableFields.Contains(kv.Key))
             .ToDictionary(kv => kv.Key, kv => kv.Value);

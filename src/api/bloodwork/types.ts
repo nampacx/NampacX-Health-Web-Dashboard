@@ -57,12 +57,21 @@ export interface BloodworkJob {
   updatedAt: string
 }
 
-/** The only fields CorrectionFunction accepts -- mirrors ResultsRepository.CorrectableFields. */
+/**
+ * The only fields CorrectionFunction accepts -- mirrors ResultsRepository.CorrectableFields.
+ * Not `analyse`: it's baked into the RowKey at write time and Table Storage RowKeys can't be
+ * renamed, so editing it afterwards would leave the key permanently describing a value the row
+ * no longer has. `bezeichnung` has no such problem -- it isn't part of the key -- and both the
+ * display label and the Summary/history grouping already prefer it (`bezeichnung || analyse`),
+ * so correcting it fixes a garbled OCR name (e.g. "rritin" for "Ferritin") without touching the
+ * key at all.
+ */
 export type BloodworkCorrectableField =
   | 'ergebniswert'
   | 'flag'
   | 'einheit'
   | 'ergebnistext'
   | 'normbereich'
+  | 'bezeichnung'
 
 export type BloodworkCorrectionPatch = Partial<Record<BloodworkCorrectableField, string>>

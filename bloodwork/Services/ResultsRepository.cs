@@ -9,10 +9,16 @@ namespace Bloodwork.Services;
 public sealed class ResultsRepository([FromKeyedServices("results")] TableClient table)
 {
     /// <summary>Fields a caller is allowed to correct via PUT /bloodwork/data/{date}/{analyte}.
-    /// Not Analyse (the row's own identity/RowKey) or Bezeichnung (the lab's own label,
-    /// treated as identifying metadata, not a measured value).</summary>
+    /// Not Analyse: it is the row's own identity, and <see cref="MakeUniqueAnalyteKey"/> already
+    /// baked a sanitized copy of it into the RowKey at write time. Table Storage RowKeys can't be
+    /// renamed, so editing Analyse afterwards would leave the key permanently describing a value
+    /// the row no longer has. Bezeichnung has no such problem -- it is an ordinary column, not part
+    /// of the key -- and both the display label and the Summary/history grouping already prefer it
+    /// over Analyse (`bezeichnung || analyse`), so correcting a garbled OCR label here (an empty or
+    /// truncated Bezeichnung, e.g. "rritin" for "Ferritin") fixes both without touching the key at
+    /// all.</summary>
     public static readonly IReadOnlyCollection<string> CorrectableFields =
-        ["ergebniswert", "flag", "einheit", "ergebnistext", "normbereich"];
+        ["ergebniswert", "flag", "einheit", "ergebnistext", "normbereich", "bezeichnung"];
 
     /// <summary>
     /// Separates the report date from the analyte code inside a RowKey.
@@ -239,6 +245,7 @@ public sealed class ResultsRepository([FromKeyedServices("results")] TableClient
                 case "einheit": entity.Einheit = value; break;
                 case "ergebnistext": entity.Ergebnistext = value; break;
                 case "normbereich": entity.Normbereich = value; break;
+                case "bezeichnung": entity.Bezeichnung = value; break;
             }
         }
         entity.Corrected = true;

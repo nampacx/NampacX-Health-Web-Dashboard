@@ -13,6 +13,10 @@ interface Props {
 
 function draftFrom(row: BloodworkResultRow): BloodworkCorrectionPatch {
   return {
+    // Seeded from the effective display value, same as every other field here
+    // -- if bezeichnung is blank and analyse is what's actually showing (e.g.
+    // a garbled OCR code), editing should start from what's on screen.
+    bezeichnung: row.bezeichnung || row.analyse,
     ergebniswert: row.ergebniswert,
     einheit: row.einheit,
     normbereich: row.normbereich,
@@ -113,8 +117,18 @@ export default function BloodworkReportCard({
               return (
                 <tr key={row.rowKey}>
                   <th scope="row">
-                    {row.bezeichnung || row.analyse}
-                    {row.corrected && <span className="pill bloodwork-corrected-pill">edited</span>}
+                    {isEditing ? (
+                      <input
+                        className="bloodwork-cell-input"
+                        value={draft.bezeichnung ?? ''}
+                        onChange={(event) => setDraft((d) => ({ ...d, bezeichnung: event.target.value }))}
+                      />
+                    ) : (
+                      <>
+                        {row.bezeichnung || row.analyse}
+                        {row.corrected && <span className="pill bloodwork-corrected-pill">edited</span>}
+                      </>
+                    )}
                   </th>
                   {isEditing ? (
                     <>
