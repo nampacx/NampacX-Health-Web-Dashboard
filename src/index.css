@@ -1692,6 +1692,13 @@ details[open] > .exercise-day-summary::before {
 .bloodwork-row-actions {
   display: flex;
   gap: 6px;
+  /* Six simultaneous inputs while editing routinely push this last column
+     past the scroll container's edge -- pin it so Save/Cancel stay reachable
+     without hunting through horizontal scroll to find them. */
+  position: sticky;
+  right: 0;
+  background: var(--surface);
+  box-shadow: -8px 0 8px -8px rgb(0 0 0 / 0.35);
 }
 
 .bloodwork-report-actions {
