@@ -9,7 +9,7 @@ interface Props {
 
 /** One row per analyte across every report, holding only its latest value. */
 export default function BloodworkSummaryTable({ resultsByDate }: Props) {
-  const [selectedAnalyte, setSelectedAnalyte] = useState<string | null>(null)
+  const [selectedIdentity, setSelectedIdentity] = useState<string | null>(null)
   const rows = buildSummaryRows(resultsByDate)
 
   if (rows.length === 0) {
@@ -37,13 +37,13 @@ export default function BloodworkSummaryTable({ resultsByDate }: Props) {
             </tr>
           </thead>
           <tbody>
-            {rows.map(({ analyse, label, lastTested, row }) => (
-              <tr key={analyse}>
+            {rows.map(({ identity, label, lastTested, row }) => (
+              <tr key={identity}>
                 <th scope="row">
                   <button
                     type="button"
                     className="link-button"
-                    onClick={() => setSelectedAnalyte(analyse)}
+                    onClick={() => setSelectedIdentity(identity)}
                   >
                     {label}
                   </button>
@@ -62,8 +62,8 @@ export default function BloodworkSummaryTable({ resultsByDate }: Props) {
 
       <BloodworkAnalyteDialog
         resultsByDate={resultsByDate}
-        analyse={selectedAnalyte}
-        onClose={() => setSelectedAnalyte(null)}
+        identity={selectedIdentity}
+        onClose={() => setSelectedIdentity(null)}
       />
     </>
   )

@@ -1,10 +1,11 @@
+import { analyteIdentity } from './analyteIdentity'
 import type { BloodworkResultRow, BloodworkResultsByDate } from './types'
 
 export interface BloodworkSummaryRow {
-  /** Groups by `analyse`, the row's stable identity across documents -- not
-   * `bezeichnung`, which is the lab's own label and can vary between reports
-   * for the same analyte. */
-  analyse: string
+  /** Case-/whitespace-normalized display identity, see `analyteIdentity` --
+   * not the raw `analyse` field, which can differ between report formats for
+   * what is otherwise plainly the same test. */
+  identity: string
   label: string
   lastTested: string
   row: BloodworkResultRow
@@ -20,16 +21,17 @@ export function buildSummaryRows(resultsByDate: BloodworkResultsByDate): Bloodwo
 
   for (const [date, rows] of Object.entries(resultsByDate)) {
     for (const row of rows) {
-      const existing = latest.get(row.analyse)
+      const identity = analyteIdentity(row)
+      const existing = latest.get(identity)
       if (!existing || date > existing.date) {
-        latest.set(row.analyse, { date, row })
+        latest.set(identity, { date, row })
       }
     }
   }
 
   return [...latest.entries()]
-    .map(([analyse, { date, row }]) => ({
-      analyse,
+    .map(([identity, { date, row }]) => ({
+      identity,
       label: row.bezeichnung || row.analyse,
       lastTested: date,
       row,
